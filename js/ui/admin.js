@@ -38,7 +38,7 @@ export class AdminMenu {
     this._frames = 0; this._fpsT = 0;
     this.colliderMesh = null; this._colT = 0;
     // touch: tap the status line 5x
-    const hot = document.getElementById('run-info');
+    const hot = document.getElementById('hp-wrap');
     let taps = [];
     hot.addEventListener('touchstart', (e) => {
       const now = performance.now();

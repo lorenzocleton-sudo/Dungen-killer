@@ -201,6 +201,7 @@ export class Input {
     bindBtn('btn-flask', 'flask');
     bindBtn('btn-run', 'sprint_toggle');
     bindBtn('btn-roll', 'roll');
+    bindBtn('btn-admin-hud', 'admin');
   }
 
   _drawJoy() {

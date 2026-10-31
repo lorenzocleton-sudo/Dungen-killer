@@ -20,6 +20,7 @@ import { Rewards } from './systems/rewards.js';
 import { Minimap } from './ui/minimap.js';
 import { Screens } from './ui/screens.js';
 import { AdminMenu, DEBUG_DEFAULTS } from './ui/admin.js';
+import { fastTap } from './ui/fasttap.js';
 import { addXp } from './systems/skills.js';
 import { Renown } from './systems/renown.js';
 import { ENEMY_TYPES } from './entities/enemyTypes.js';
@@ -77,6 +78,7 @@ class Game {
     this.dungeonLevel = 1;
     this.systems = [this.enemies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
     this.admin = new AdminMenu(this);
+    for (const id of ['menu', 'admin', 'panel', 'title']) fastTap(document.getElementById(id));
     this.renown = new Renown(this);
     this.renown.noteSkills();
     this.renown.lastRank = this.renown.rankIndex;
