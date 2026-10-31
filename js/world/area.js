@@ -35,6 +35,7 @@ export class Area {
     this.enemies = [];
     this.pickups = [];
     this.interactables = []; // { pos, radius, label, onUse, enabled }
+    this.mapMarkers = [];    // { x, z, type } for the minimap
     this.spawns = {};     // named spawn points: { pos, yaw }
     this.time = 0;
     this.dustTimer = 0;
@@ -98,6 +99,7 @@ export class Area {
   /** Check portal triggers. Returns the portal the player stands in, if any. */
   checkPortals(player) {
     for (const p of this.portals) {
+      if (p.locked) continue;
       const dx = player.pos.x - p.pos.x, dz = player.pos.z - p.pos.z;
       const dy = player.pos.y - p.pos.y;
       if (dx * dx + dz * dz < p.radius * p.radius && Math.abs(dy) < 2) return p;

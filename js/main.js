@@ -12,7 +12,9 @@ import { WorldClock } from './systems/clock.js';
 import { GameState } from './systems/state.js';
 import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
-import { Dungeon, RandomDungeon } from './world/dungeon.js';
+import { MainDungeon, RandomDungeon } from './world/dungeon.js';
+import { BIOME_IDS } from './world/biomes.js';
+import { Projectiles } from './entities/projectiles.js';
 import { Screens } from './ui/screens.js';
 import { AdminMenu, DEBUG_DEFAULTS } from './ui/admin.js';
 import { addXp } from './systems/skills.js';
@@ -25,10 +27,11 @@ import { LootSystem } from './systems/loot.js';
 // Registry of areas. New areas register a factory here.
 const AREA_FACTORIES = {
   town: (g) => new Town(g),
-  dungeon: (g) => new Dungeon(g),
+  dungeon: (g) => new MainDungeon(g),
   depths: (g) => new RandomDungeon(g),
 };
 export function registerArea(id, factory) { AREA_FACTORIES[id] = factory; }
+const HOSTILE_AREAS = { dungeon: true, depths: true };
 
 class Game {
   constructor() {
@@ -63,13 +66,24 @@ class Game {
     this.enemies = new EnemyManager(this);
     this.combat = new CombatSystem(this);
     this.loot = new LootSystem(this);
-    this.systems = [this.enemies, this.combat, this.loot]; // pluggable: { update(dt, game) }
+    this.projectiles = new Projectiles(this);
+    this.biomeIds = BIOME_IDS;
+    this.dungeonLevel = 1;
+    this.systems = [this.enemies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
     this.admin = new AdminMenu(this);
     this.renown = new Renown(this);
     this.renown.noteSkills();
     this.renown.lastRank = this.renown.rankIndex;
     this.deathTimer = 0;
     events.on('playerDied', () => this.onPlayerDeath());
+    events.on('areaChanged', () => this.projectiles.clear());
+    events.on('enemyKilled', ({ enemy }) => {
+      if (!enemy.def.boss) return;
+      this.state.world.bosses[enemy.type] = (this.state.world.bosses[enemy.type] || 0) + 1;
+      this.loot.roll('boss', enemy.pos, 4);
+      if (this.area.onBossDefeated) this.area.onBossDefeated(enemy);
+      this.state.save();
+    });
     events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
 
     this.combat.refreshStats();
@@ -254,6 +268,10 @@ class Game {
       const sp = this.area.spawns[spawnName] || this.area.spawns.start || Object.values(this.area.spawns)[0];
       this.player.place(sp.pos.x, sp.pos.y, sp.pos.z, sp.yaw);
       this.area.onEnter(prev);
+      if (this.area instanceof MainDungeon) {
+        this.renown.reachLevel(this.area.level);
+        this.state.world.deepest = Math.max(this.state.world.deepest || 0, this.area.level);
+      }
       const wl = this.area.weaponLighting();
       this.combat.weapon.setLighting(wl[0], wl[1]);
       this.portalCooldown = 1.0;
@@ -273,16 +291,18 @@ class Game {
   onPortal(portal) {
     events.emit('portalUsed', { from: this.area.id, to: portal.target });
     const leavingHostile = this.area.hostile;
-    const target = this.getArea(portal.target);
-    if (target.hostile && !leavingHostile) {
-      // entering the dungeon: a fresh RUN begins, SAVED is what you walked in with
+    const targetHostile = !!HOSTILE_AREAS[portal.target];
+    if (portal.descend) this.dungeonLevel++;
+    else if (portal.target === 'dungeon' && !leavingHostile) this.dungeonLevel = 1;
+    if (targetHostile && !leavingHostile) {
+      // entering a dungeon: a fresh RUN begins, SAVED is what you walked in with
       this.state.startRun();
       this.state.save();
-    } else if (leavingHostile && !target.hostile) {
+    } else if (leavingHostile && !targetHostile) {
       // made it out alive: the run becomes permanent
       const s = this.state.commitRun();
       this.state.save();
-      if (s && (s.currency || s.items)) this.hud.feed(`Kept ${s.currency} ashes${s.items ? ' and ' + s.items + ' relic(s)' : ''}.`, '#d8c080');
+      if (s && (s.currency || s.items)) this.hud.feed(`Kept ${s.currency} ashes${s.items ? ' and ' + s.items + ' item(s)' : ''}.`, '#d8c080');
     }
     this.travelTo(portal.target, portal.spawn || 'portal');
   }
@@ -400,7 +420,7 @@ class Game {
       this.hud.interactPrompt('');
       // portals
       const np = area.nearestPortal(this.player);
-      this.hud.prompt(np && np.dist < 4.5 && !this.transitioning ? np.portal.label : '');
+      this.hud.prompt(np && np.dist < 4.5 && !this.transitioning ? (np.portal.locked ? np.portal.lockedLabel : np.portal.label) : '');
     }
     if (this.portalCooldown > 0) this.portalCooldown -= dt;
     this.hud.setSprint(this.player.sprinting);
@@ -418,6 +438,9 @@ class Game {
     }
 
     this.hud.setHp(this.player.hp, this.player.maxHp);
+    let boss = null;
+    for (const e of this.enemies.list) if (e.showsBar && (!boss || e.def.boss)) boss = e;
+    this.hud.setBoss(boss);
     this.hud.setStamina(this.player.stamina, this.player.maxStamina, this.player.exhausted);
     this.hud.setClock(this.clock, area.hostile, this.townPhase());
     const st = this.state;

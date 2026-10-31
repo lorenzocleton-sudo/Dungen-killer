@@ -656,3 +656,34 @@ const HERO_LOOKS = {
   paladin: { armor: 'iron', under: 'ironDark', cape: 'cloth', trim: 'ironPlate', helm: 'open', plume: 'cloth', weapon: 'shield', orb: 0xe8d090, bulky: true, scale: 1.1, tabard: 'cloth' },
   sellsword: { armor: 'clothBrown', under: 'ironDark', cape: 'clothBrown', trim: 'iron', helm: 'open', weapon: 'twin', scale: 1.0 },
 };
+
+/**
+ * Sealed gate: a portal behind iron bars. Stays locked until `open()` is
+ * called (e.g. when the arena boss dies).
+ * o: portal options + lockedLabel
+ */
+export function gate(area, o) {
+  const p = portal(area, o);
+  p.locked = true;
+  p.lockedLabel = o.lockedLabel || 'Sealed';
+  const cs = Math.cos(o.yaw || 0), sn = Math.sin(o.yaw || 0);
+  const bars = new THREE.Group();
+  const m = litMaterial('ironDark');
+  for (let i = -5; i <= 5; i++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.2, 0.1), m);
+    b.position.set(i * 0.27, 2.1, 0); bars.add(b);
+  }
+  for (const y of [0.8, 2.2, 3.6]) { const h = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.12, 0.12), m); h.position.y = y; bars.add(h); }
+  bars.position.set(o.x + sn * 0.35, o.y || 0, o.z + cs * 0.35);
+  bars.rotation.y = o.yaw || 0;
+  area.scene.add(bars);
+  // a sign plate under the arch
+  if (o.sign) sign(area, o.x + sn * 0.6, (o.y || 0) + 4.25, o.z + cs * 0.6, o.yaw || 0, o.sign);
+  let t = -1;
+  p.open = () => {
+    if (!p.locked) return;
+    p.locked = false; t = 0;
+  };
+  area.animated.push({ update(dt) { if (t >= 0 && t < 1) { t = Math.min(1, t + dt * 0.5); bars.position.y = (o.y || 0) - t * 4.3; if (Math.random() < 0.5) area.dust.emit(bars.position.x, (o.y || 0) + 0.2, bars.position.z, (Math.random() - 0.5), 0.6, (Math.random() - 0.5), 1, [0.3, 0.28, 0.25], 0.1); } } });
+  return p;
+}

@@ -7,8 +7,12 @@
 import * as THREE from '../../lib/three.module.min.js';
 import { Area } from './area.js';
 import { boxGeo, trs } from '../engine/geometry.js';
+import { litMaterial } from '../engine/materials.js';
 import { box, mesh, wallTorch, brazier, portal, chest } from './props.js';
 import { generateDungeon } from './dungeonGen.js';
+import { BIOMES, BIOME_IDS, mainLevelEnemies } from './biomes.js';
+import { BOSS_BY_LEVEL } from '../entities/enemyTypes.js';
+import { gate } from './props.js';
 
 export const CELL = 2.5;
 const LEVEL_DROP = 1.5;
@@ -74,6 +78,7 @@ export class Dungeon extends Area {
     this.spawnList = DUNGEON_SPAWNS;
     this.fixedDecor = true;
     this.returnSpawn = 'portal';
+    this.biome = BIOMES.crypt;
   }
 
   /** Parse the ASCII map (or take generated cells) into cell records. */
@@ -136,12 +141,15 @@ export class Dungeon extends Area {
   build() {
     this.parse();
     const A = this, g = this.grid;
-    this.scene.fog = new THREE.Fog(0x040403, 1, 24);
-    this.scene.background = new THREE.Color(0x030303);
-    this.hemi.color.set(0x4a4640); this.hemi.groundColor.set(0x0a0806); this.hemi.intensity = 1.3;
+    const B = this.biome;
+    this.scene.fog = new THREE.Fog(B.fog, 1, B.fogFar);
+    this.scene.background = new THREE.Color(B.fog);
+    this.hemi.color.set(B.hemi[0]); this.hemi.groundColor.set(B.hemi[1]); this.hemi.intensity = B.hemi[2];
     this.sun.intensity = 0;
-    this.lanternIntensity = 5.6;
-    this.dustColor = [0.32, 0.3, 0.27];
+    this.lanternIntensity = B.lantern;
+    this.dustColor = B.dust;
+    const waterMat = B.water ? litMaterial('water', { transparent: true, color: 0x8aa080 }) : null;
+    if (waterMat) { waterMat.opacity = 0.75; }
 
     const N4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];
     const wallShade = (lo, hi) => (x, y) => {
@@ -161,8 +169,8 @@ export class Dungeon extends Area {
         }
         if (lo === Infinity) continue;
         const nearHall = [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dc, dr]) => this.at(r + dr, c + dc).hall);
-        const y0 = lo - 0.6, y1 = hi + 0.6;
-        box(A, nearHall ? 'stoneWall' : 'stoneDark', cx, (y0 + y1) / 2, cz, CELL, y1 - y0, CELL, { worldUV: 2.5, shade: wallShade(lo, hi) });
+        const y0 = lo - 0.6, y1 = hi + (B.open ? 4 : 0.6);
+        box(A, nearHall ? B.hallWall : B.wall, cx, (y0 + y1) / 2, cz, CELL, y1 - y0, CELL, { worldUV: 2.5, shade: wallShade(lo, hi) });
         continue;
       }
       // ---- floor (extends down to the lowest neighbour so ledges are solid)
@@ -170,7 +178,8 @@ export class Dungeon extends Area {
       for (const [dc, dr] of N4) { const n = this.at(r + dr, c + dc); if (n.type !== 'wall') low = Math.min(low, n.minY); }
       if (s.type === 'floor') {
         const bot = low - 0.4;
-        box(A, s.hall ? 'cobbleDark' : 'flagstone', cx, (bot + s.floorY) / 2, cz, CELL, s.floorY - bot, CELL, { worldUV: 2.5, shade: null });
+        box(A, s.hall ? B.hallFloor : B.floor, cx, (bot + s.floorY) / 2, cz, CELL, s.floorY - bot, CELL, { worldUV: 2.5, shade: null });
+        if (waterMat && s.roomId !== undefined && !s.portal) box(A, waterMat, cx, s.floorY + 0.1, cz, CELL, 0.06, CELL, { worldUV: 2.5, collide: false, shade: null });
       } else {
         // stairs: 8 steps along the descent direction
         const [dx, dz] = s.dir, steps = 8, depth = CELL / steps;
@@ -180,22 +189,22 @@ export class Dungeon extends Area {
           const off = -CELL / 2 + depth * (i + 0.5);
           const sx = cx + dx * off, sz = cz + dz * off;
           const w = dx ? depth : CELL, d = dz ? depth : CELL;
-          box(A, 'stone', sx, (bot + top) / 2, sz, w, top - bot, d, { worldUV: 1.25, shade: (x, y) => (y > top - 0.01 ? 0.95 : 0.55) });
+          box(A, B.stair, sx, (bot + top) / 2, sz, w, top - bot, d, { worldUV: 1.25, shade: (x, y) => (y > top - 0.01 ? 0.95 : 0.55) });
         }
       }
       // ---- ceiling
-      box(A, 'ceiling', cx, s.ceilY + 0.25, cz, CELL, 0.5, CELL, { worldUV: 2.5, collide: false, shade: () => 0.6 });
+      if (!B.open) box(A, B.ceiling, cx, s.ceilY + 0.25, cz, CELL, 0.5, CELL, { worldUV: 2.5, collide: false, shade: () => 0.6 });
       // ---- lintels where neighbouring ceilings differ (right + down to avoid duplicates)
       for (const [dc, dr] of [[1, 0], [0, 1]]) {
         const n = this.at(r + dr, c + dc);
-        if (n.type === 'wall' || Math.abs(n.ceilY - s.ceilY) < 0.01) continue;
+        if (B.open || n.type === 'wall' || Math.abs(n.ceilY - s.ceilY) < 0.01) continue;
         const lo = Math.min(n.ceilY, s.ceilY), hi = Math.max(n.ceilY, s.ceilY);
         const bx = cx + dc * CELL / 2, bz = cz + dr * CELL / 2;
-        box(A, 'stoneDark', bx, (lo + hi) / 2 + 0.25, bz, dc ? 0.4 : CELL, hi - lo + 0.5, dc ? CELL : 0.4, { worldUV: 2.5, collide: false, shade: () => 0.55 });
+        box(A, B.wall, bx, (lo + hi) / 2 + 0.25, bz, dc ? 0.4 : CELL, hi - lo + 0.5, dc ? CELL : 0.4, { worldUV: 2.5, collide: false, shade: () => 0.55 });
       }
       if (s.pillar) {
         const h = s.ceilY - s.floorY;
-        mesh(A, 'stoneWall', new THREE.CylinderGeometry(0.62, 0.7, h, 8), trs(cx, s.floorY + h / 2, cz), { worldUV: 2, shade: wallShade(s.floorY, s.ceilY) });
+        mesh(A, B.pillar, new THREE.CylinderGeometry(0.62, 0.7, h, 8), trs(cx, s.floorY + h / 2, cz), { worldUV: 2, shade: wallShade(s.floorY, s.ceilY) });
         box(A, 'stoneDark', cx, s.floorY + 0.3, cz, 1.7, 0.6, 1.7, { worldUV: 1.5 });
         box(A, 'stoneDark', cx, s.ceilY - 0.35, cz, 1.6, 0.5, 1.6, { worldUV: 1.5, collide: false, shade: null });
         A.collision.addCentered(cx, s.floorY + h / 2, cz, 1.35, h, 1.35);
@@ -217,7 +226,7 @@ export class Dungeon extends Area {
     }
     this.spawns.start = this.spawns.portal;
 
-    this.enemySpawns = this.spawnList.map(([c, r, type]) => ({ type, pos: this.cellCenter(c, r) }));
+    this.enemySpawns = this.spawnList.map(([c, r, type, opts]) => ({ type, pos: this.cellCenter(c, r), opts: { ...this.enemyOpts, ...opts } }));
     this.finish();
   }
 
@@ -232,7 +241,7 @@ export class Dungeon extends Area {
         if (this.at(r + dr, c + dc).type !== 'wall') continue;
         const x = (c + 0.5) * CELL + dc * CELL / 2, z = (r + 0.5) * CELL + dr * CELL / 2;
         if (!ok(x, z, s.hall ? 7.5 : 6.5)) continue;
-        if (((r * 7 + c * 13 + dc * 3 + dr * 5) & 3) !== 0) continue;
+        if (((r * 7 + c * 13 + dc * 3 + dr * 5) % this.biome.torchRate) !== 0) continue;
         placed.push([x, z]);
         wallTorch(this, x - dc * 0.02, s.floorY + 2.1, z - dr * 0.02, yaw);
       }
@@ -317,6 +326,36 @@ export class Dungeon extends Area {
         const rot = rnd() < 0.5 ? 0 : Math.PI / 2;
         box(A, 'stoneDark', x, y + 0.45, z, 1.1, 0.9, 2.1, { worldUV: 1, rot });
         box(A, 'stone', x, y + 0.97, z, 1.25, 0.16, 2.25, { worldUV: 1, collide: false, rot: rot + (rnd() - 0.5) * 0.3, shade: null });
+      } else if (kind === 'tree' || kind === 'deadtree') {
+        const h = 5 + rnd() * 3;
+        mesh(A, 'bark', new THREE.CylinderGeometry(0.22, 0.42, h, 6), trs(x, y + h / 2, z, rnd() * 6));
+        A.collision.addCentered(x, y + h / 2, z, 0.7, h, 0.7, 'prop');
+        if (kind === 'tree') for (let i = 0; i < 3; i++) mesh(A, 'hedge', new THREE.IcosahedronGeometry(1.1 + rnd() * 0.6, 0), trs(x + (rnd() - 0.5) * 1.2, y + h - 0.6 + i * 0.5, z + (rnd() - 0.5) * 1.2, rnd() * 6), { shade: null });
+        else for (let i = 0; i < 3; i++) mesh(A, 'bark', new THREE.CylinderGeometry(0.03, 0.09, 1.4, 4), trs(x, y + h * 0.6 + i * 0.5, z, [0.9, rnd() * 6, 0]), { shade: null });
+      } else if (kind === 'stump' || kind === 'mushroom') {
+        mesh(A, kind === 'stump' ? 'bark' : 'bone', new THREE.CylinderGeometry(0.35, 0.45, 0.6, 6), trs(x, y + 0.3, z, rnd()));
+        if (kind === 'mushroom') { mesh(A, 'impSkin', new THREE.ConeGeometry(0.7, 0.5, 7), trs(x, y + 0.85, z, rnd()), { shade: null }); A.addEmitter(new THREE.Vector3(x, y + 0.8, z), 1.5, (a, p) => a.glow.emit(p.x + (Math.random() - 0.5), p.y, p.z + (Math.random() - 0.5), 0, 0.3, 0, 2, [0.4, 0.9, 0.5], 0.04)); }
+        A.collision.addCentered(x, y + 0.4, z, 0.9, 0.8, 0.9, 'prop');
+      } else if (kind === 'reeds') {
+        for (let i = 0; i < 9; i++) mesh(A, 'hedge', boxGeo(0.04, 1 + rnd(), 0.04, 0.5), trs(x + (rnd() - 0.5) * 1.6, y + 0.6, z + (rnd() - 0.5) * 1.6, [rnd() * 0.3, 0, rnd() * 0.3]), { shade: null });
+      } else if (kind === 'icicle' || kind === 'crystal') {
+        for (let i = 0; i < 4; i++) {
+          const h = 0.6 + rnd() * 1.4;
+          const up = kind === 'crystal';
+          mesh(A, 'ice', new THREE.ConeGeometry(0.15 + rnd() * 0.15, h, 5), trs(x + (rnd() - 0.5) * 1.4, up ? y + h / 2 : this.at(r, c).ceilY - h / 2, z + (rnd() - 0.5) * 1.4, [up ? 0 : Math.PI, 0, 0]), { shade: null });
+        }
+        if (kind === 'crystal') A.collision.addCentered(x, y + 0.6, z, 1.2, 1.2, 1.2, 'prop');
+      } else if (kind === 'beam') {
+        const top = this.at(r, c).ceilY;
+        for (const s of [-1, 1]) box(A, 'beam', x + s * 1.0, (y + top) / 2, z, 0.25, top - y, 0.25, { tag: 'prop' });
+        box(A, 'beam', x, top - 0.2, z, 2.3, 0.25, 0.3, { collide: false, shade: null });
+      } else if (kind === 'lavapool') {
+        box(A, 'lava', x, y + 0.03, z, 1.8, 0.06, 1.8, { collide: false, shade: () => 1 });
+        A.lights.add(new THREE.Vector3(x, y + 0.5, z), { color: 0xff5010, intensity: 5, range: 6, flicker: 0.5 });
+        A.addEmitter(new THREE.Vector3(x, y + 0.1, z), 3, (a, p) => a.glow.emit(p.x + (Math.random() - 0.5) * 1.5, p.y, p.z + (Math.random() - 0.5) * 1.5, 0, 1, 0, 1, [1, 0.4, 0.1], 0.04));
+      } else if (kind === 'cart') {
+        box(A, 'woodDark', x, y + 0.6, z, 1.0, 0.6, 1.5, { tex: 1 });
+        mesh(A, 'rock', new THREE.IcosahedronGeometry(0.45, 0), trs(x, y + 1.0, z, rnd()), { shade: null });
       } else if (kind === 'rubble') {
         for (let i = 0; i < 6; i++) {
           const s = 0.2 + rnd() * 0.35;
@@ -404,16 +443,88 @@ export class Dungeon extends Area {
   }
 }
 
-/** A freshly generated layout every visit. */
-export class RandomDungeon extends Dungeon {
+/** Main dungeon: numbered levels, each ending in a boss arena with two gates. */
+export const MAIN_LEVELS = 5;
+
+export class MainDungeon extends Dungeon {
   constructor(game) {
-    super(game, 'depths', 'The Shifting Depths');
+    const level = Math.max(1, Math.min(MAIN_LEVELS, game.dungeonLevel || 1));
+    super(game, 'dungeon', `The Catacombs \u2014 Level ${level}`);
+    this.level = level;
     this.transient = true;
-    this.returnSpawn = 'portal_depths';
-    this.layout = generateDungeon((Math.random() * 1e9) | 0);
+    this.returnSpawn = 'portal';
+    this.layout = generateDungeon(level * 104729 + 17, { arena: true, enemies: mainLevelEnemies(level) });
     this.cells = this.layout.cells;
     this.braziers = this.layout.braziers;
     this.spawnList = this.layout.spawns;
     this.fixedDecor = false;
+    this.enemyOpts = { level };
+    this.bossType = BOSS_BY_LEVEL[level - 1];
+  }
+
+  build() {
+    super.build();
+    const a = this.layout.arena, [sx, sz] = a.entryDir;
+    // the boss waits in the middle of the arena
+    this.enemySpawns.push({ type: this.bossType, pos: this.cellCenter(a.cx, a.cy), opts: { level: this.level } });
+    // two gates on the far side of the arena
+    const ex = a.cx + sx * Math.floor(a.w / 2), ez = a.cy + sz * Math.floor(a.h / 2);
+    const px = -sz, pz = sx;
+    const yaw = Math.atan2(-sx, -sz);
+    const mk = (off, o) => {
+      const c = ex + px * off, r = ez + pz * off;
+      const pos = this.cellCenter(c, r);
+      return gate(this, { x: pos.x + sx * CELL * 0.25, z: pos.z + sz * CELL * 0.25, y: pos.y, yaw, ...o });
+    };
+    const last = this.level >= MAIN_LEVELS;
+    this.gates = [
+      mk(-2, { target: 'dungeon', descend: true, color: 'red', sign: last ? 'SEALED' : 'DESCEND', label: last ? '' : `Descend to level ${this.level + 1}`,
+        lockedLabel: last ? 'The deeper dark is sealed... for now' : 'Sealed until the guardian falls' }),
+      mk(2, { target: 'town', spawn: 'portal', color: 'blue', sign: 'RETURN', label: 'Return to town (your loot is kept)', lockedLabel: 'Sealed until the guardian falls' }),
+    ];
+    this.gates[0].permanent = last;
+    this.arenaCenter = this.cellCenter(a.cx, a.cy);
+    this.arenaEntry = this.cellCenter(a.cx - sx * (Math.floor(a.w / 2) - 1), a.cy - sz * (Math.floor(a.h / 2) - 1));
+    this.arenaEntryYaw = Math.atan2(-sx, -sz) + Math.PI;
+    this.mapMarkers.push({ x: this.arenaCenter.x, z: this.arenaCenter.z, type: 'boss' });
+    for (const gt of this.gates) this.mapMarkers.push({ x: gt.pos.x, z: gt.pos.z, type: 'gate' });
+  }
+
+  onBossDefeated(enemy) {
+    for (const gt of this.gates) if (!gt.permanent) gt.open();
+    this.game.hud.banner(enemy.name + ' has fallen', 'the gates grind open');
+  }
+
+  onEnter() {
+    super.onEnter();
+    if (this.game.pendingArena) {
+      this.game.pendingArena = false;
+      const p = this.arenaEntry;
+      this.game.player.place(p.x, p.y, p.z, Math.atan2(-(this.arenaCenter.x - p.x), -(this.arenaCenter.z - p.z)));
+    }
+  }
+}
+
+/** A freshly generated layout every visit, in a random biome. */
+export class RandomDungeon extends Dungeon {
+  constructor(game) {
+    const biomeId = game.nextBiome && BIOMES[game.nextBiome] ? game.nextBiome : BIOME_IDS[Math.floor(Math.random() * BIOME_IDS.length)];
+    game.nextBiome = null;
+    super(game, 'depths', BIOMES[biomeId].title);
+    this.biome = BIOMES[biomeId];
+    this.biomeId = biomeId;
+    this.transient = true;
+    this.returnSpawn = 'portal_depths';
+    this.layout = generateDungeon((Math.random() * 1e9) | 0, { enemies: this.biome.enemies });
+    this.cells = this.layout.cells;
+    this.braziers = this.layout.braziers;
+    this.spawnList = this.layout.spawns;
+    this.fixedDecor = false;
+    // 1 in 3: an elder mini-boss guards the final room
+    this.hasMiniBoss = game.forceMiniBoss || Math.random() < 1 / 3;
+    if (this.hasMiniBoss) {
+      const f = this.layout.far, mini = this.biome.mini;
+      this.spawnList.push([f.cx, f.cy, mini[Math.floor(Math.random() * mini.length)], { elite: true }]);
+    }
   }
 }

@@ -53,6 +53,14 @@ export const DROP_TABLES = {
   hollow: [['bone_shard', 0.45], ['tattered_cloth', 0.15], ['dented_helm', 0.05], ['rusted_ring', 0.04], ['ashen_flask', 0.08]],
   ghoul: [['grave_wax', 0.45], ['bone_shard', 0.25], ['gold_tooth', 0.08], ['ashen_flask', 0.06]],
   knight: [['black_iron', 0.7], ['ember_relic', 0.35], ['knight_gauntlet', 0.18], ['knight_helm', 0.15], ['longsword', 0.12]],
+  wolf: [['bone_shard', 0.35], ['gold_tooth', 0.05], ['ashen_flask', 0.05]],
+  spider: [['grave_wax', 0.35], ['black_iron', 0.06], ['ashen_flask', 0.07]],
+  hag: [['tattered_cloth', 0.4], ['gold_tooth', 0.12], ['ashen_flask', 0.1], ['vigor_ring', 0.02]],
+  wraith: [['bone_shard', 0.3], ['ember_relic', 0.06], ['ashen_flask', 0.07]],
+  imp: [['ember_relic', 0.1], ['grave_wax', 0.3], ['ember_ring', 0.02]],
+  brute: [['black_iron', 0.8], ['gold_tooth', 0.3], ['hauberk', 0.06], ['war_axe', 0.05]],
+  archer: [['bone_shard', 0.45], ['hunter_gloves', 0.03], ['ashen_flask', 0.06]],
+  boss: [['ember_relic', 1], ['black_iron', 1], ['ashen_flask', 1], ['gold_tooth', 0.8], ['ember_ring', 0.3], ['hauberk', 0.25], ['ash_blade', 0.15]],
   chest: [['ashen_flask', 0.8], ['gold_tooth', 0.6], ['ember_relic', 0.35], ['hunter_gloves', 0.15], ['ember_ring', 0.08], ['hauberk', 0.08]],
 };
 

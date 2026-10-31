@@ -73,6 +73,15 @@ export class HUD {
     clearTimeout(this._sp); this._sp = setTimeout(() => el.classList.remove('show'), secs * 1000);
   }
 
+  /** Boss / mini-boss health bar (top centre). */
+  setBoss(e) {
+    const el = this._boss || (this._boss = document.getElementById('boss-bar'));
+    if (!e) { if (this._bossOn) { el.classList.remove('show'); this._bossOn = false; } return; }
+    if (!this._bossOn) { el.classList.add('show'); this._bossOn = true; }
+    el.querySelector('.bb-name').textContent = e.name + (e.brain && e.brain.phase === 2 ? '  \u2022 enraged' : '');
+    el.querySelector('.bb-fill').style.width = Math.max(0, e.hp / e.maxHp) * 100 + '%';
+  }
+
   setSprint(on) { document.getElementById('sprint-ind').classList.toggle('show', on); }
 
   /** Context prompt; on touch the USE button doubles as the action. */

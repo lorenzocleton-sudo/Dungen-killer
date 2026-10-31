@@ -89,7 +89,7 @@ export class CombatSystem {
       const fwd = Math.atan2(p.forward.x, p.forward.z), ang = Math.atan2(dx, dz);
       let diff = ang - fwd; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
       if (Math.abs(diff) > arc && dist > 0.3) continue;
-      if (!g.area.collision.lineOfSight(p.pos.x, p.eyeY, p.pos.z, e.pos.x, e.pos.y + e.def.height * 0.5, e.pos.z)) continue;
+      if (!g.area.collision.lineOfSight(p.pos.x, p.eyeY, p.pos.z, e.pos.x, e.pos.y + e.height * 0.5, e.pos.z)) continue;
 
       const [lo, hi] = PLAYER_ATTACK.damage;
       let dmg = (lo + Math.random() * (hi - lo)) * (1 + s.damagePct / 100);
@@ -108,7 +108,7 @@ export class CombatSystem {
       if (s.burnDps && !e.dead) e.ignite(s.burnDps * (1 + s.burnPct / 100), 3 * (1 + s.burnPct / 100));
       if (crit && s.emberBurst) this.emberBurst(e, s.emberBurst);
 
-      const hx = e.pos.x - dx * 0.25, hz = e.pos.z - dz * 0.25, hy = e.pos.y + e.def.height * 0.55;
+      const hx = e.pos.x - dx * 0.25, hz = e.pos.z - dz * 0.25, hy = e.pos.y + e.height * 0.55;
       if (e.def.armored) g.area.glow.burst(hx, hy, hz, 14, 4, 0.35, [1, 0.75, 0.35], 0.035, -9, 1);
       else g.area.dust.burst(hx, hy, hz, 12, 2.5, 0.6, e.def.hitColor, 0.06, -9, 1);
       hits++;

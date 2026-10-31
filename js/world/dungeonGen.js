@@ -6,15 +6,19 @@ import { makeRng } from '../engine/textures.js';
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-export function generateDungeon(seed) {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const out = tryGenerate(seed + attempt * 7919);
+/**
+ * opts.enemies: [[type, weight], ...]   enemy mix (heavy types get rarer in small rooms)
+ * opts.arena:   reserve a big boss arena, connected last (a dead end)
+ */
+export function generateDungeon(seed, opts = {}) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const out = tryGenerate(seed + attempt * 7919, opts);
     if (out) return out;
   }
   throw new Error('dungeon generation failed');
 }
 
-function tryGenerate(seed) {
+function tryGenerate(seed, opts) {
   const rnd = makeRng(seed);
   const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
   const W = 46, H = 46;
@@ -32,8 +36,16 @@ function tryGenerate(seed) {
   // entrance room: portal on its north wall
   const ex = ri(14, W - 20);
   rooms.push({ x: ex, y: 2, w: 5, h: 4, level: 0, entrance: true });
-  const target = ri(9, 12);
-  let hallPlaced = false;
+  let arena = null;
+  if (opts.arena) {
+    for (let i = 0; i < 200 && !arena; i++) {
+      const w = 9, h = 9, x = ri(3, W - w - 3), y = ri(H - h - 12, H - h - 2);
+      if (fits(x, y, w, h)) { arena = { x, y, w, h, arena: true, hall: true }; rooms.push(arena); }
+    }
+    if (!arena) return null;
+  }
+  const target = ri(9, 12) + (arena ? 1 : 0);
+  let hallPlaced = !!arena;
   for (let i = 0; i < 400 && rooms.length < target; i++) {
     const hall = !hallPlaced && rooms.length >= 3 && rnd() < 0.35;
     const w = hall ? ri(7, 9) : ri(3, 7), h = hall ? ri(6, 8) : ri(3, 6);
@@ -97,9 +109,10 @@ function tryGenerate(seed) {
   };
 
   while (pending.length) {
-    // nearest pending room to any connected room
+    // nearest pending room to any connected room (the arena always goes last)
     let best = null;
-    for (const b of pending) for (const a of connected) {
+    const cands = pending.length > 1 ? pending.filter((r) => !r.arena) : pending;
+    for (const b of cands) for (const a of connected) {
       const [ax, ay] = center(a), [bx, by] = center(b);
       const d = Math.abs(ax - bx) + Math.abs(ay - by);
       if (!best || d < best.d) best = { a, b, d };
@@ -124,6 +137,11 @@ function tryGenerate(seed) {
       if (res.stair) cells[res.stair.r][res.stair.c] = { type: 'stair', dir: res.stair.dir, level: a.level };
       corridors.push(res);
       if (a === rooms[0] && !exitCell) exitCell = res.corr[0];
+      if (b.arena) {
+        const [lc, lr] = res.corr[res.corr.length - 1];
+        b.entryCell = [lc, lr];
+        b.entryDir = [Math.sign(center(b)[0] - lc) * (Math.abs(center(b)[0] - lc) > Math.abs(center(b)[1] - lr) ? 1 : 0), Math.sign(center(b)[1] - lr) * (Math.abs(center(b)[1] - lr) >= Math.abs(center(b)[0] - lc) ? 1 : 0)];
+      }
       connected.push(b);
       done = true;
       break;
@@ -133,12 +151,13 @@ function tryGenerate(seed) {
   }
   const used = connected;
   if (used.length < 7) return null;
+  if (arena && !used.includes(arena)) return null;
 
   // pillars in the hall (inner grid, never next to a doorway)
   for (const o of used) {
     if (!o.hall) continue;
     for (let r = o.y + 1; r < o.y + o.h - 1; r += 3) for (let c = o.x + 1; c < o.x + o.w - 1; c += 3) {
-      if (c === center(o)[0]) continue;
+      if (c === center(o)[0] || o.arena) continue;
       cells[r][c].pillar = true;
     }
   }
@@ -150,7 +169,15 @@ function tryGenerate(seed) {
   if (!validate(cells, W, H, portal, used)) return null;
 
   // ---------------------------------------------------------- population
-  const far = used.slice(1).sort((p, q) => (q.depth * 10 + q.level * 5 + q.w * q.h * 0.1) - (p.depth * 10 + p.level * 5 + p.w * p.h * 0.1))[0];
+  const pickType = (o) => {
+    const tbl = opts.enemies || [['hollow', 5], ['ghoul', 3], ['knight', 1]];
+    const heavyBoost = 0.5 + o.level * 0.35 + (o.hall ? 0.4 : 0);
+    const w = tbl.map(([t, wt]) => [t, wt * (['knight', 'brute'].includes(t) ? heavyBoost : 1)]);
+    let roll = rnd() * w.reduce((s, [, x]) => s + x, 0);
+    for (const [t, x] of w) { roll -= x; if (roll <= 0) return t; }
+    return w[0][0];
+  };
+  const far = used.slice(1).filter((o) => !o.arena).sort((p, q) => (q.depth * 10 + q.level * 5 + q.w * q.h * 0.1) - (p.depth * 10 + p.level * 5 + p.w * p.h * 0.1))[0];
   const spawns = [];
   const braziers = [];
   const decor = [];
@@ -163,7 +190,7 @@ function tryGenerate(seed) {
     return null;
   };
   for (const o of used) {
-    if (o.entrance) continue;
+    if (o.entrance || o.arena) continue;
     const taken = [];
     const area = o.w * o.h;
     let n = Math.min(4, 1 + Math.floor(area / 12) + (o.level >= 2 ? 1 : 0));
@@ -172,10 +199,7 @@ function tryGenerate(seed) {
       const p = freeCell(o, taken);
       if (!p) continue;
       taken.push(p);
-      const roll = rnd();
-      const knightChance = 0.06 + o.level * 0.1 + (o.hall ? 0.15 : 0);
-      const type = roll < knightChance ? 'knight' : roll < knightChance + 0.38 ? 'ghoul' : 'hollow';
-      spawns.push([p[0], p[1], type]);
+      spawns.push([p[0], p[1], pickType(o)]);
     }
     if (area >= 16 && !o.hall) {
       const [cx, cy] = center(o);
@@ -188,13 +212,20 @@ function tryGenerate(seed) {
       if (p) { taken.push(p); decor.push([p[0], p[1], kinds[Math.floor(rnd() * kinds.length)]]); }
     }
   }
-  // the deepest room guards a chest, watched by a knight
+  // the deepest room guards the reward chest (random dungeons)
   const [fc, fr] = center(far);
-  const chest = [fc, far.y];
-  if (!spawns.some(([c, r, t]) => t === 'knight' && far && inRoom(far, c, r))) spawns.push([fc, fr, 'knight']);
+  const chest = arena ? null : [fc, far.y];
   braziers.push([far.x, far.y + far.h - 1], [far.x + far.w - 1, far.y + far.h - 1]);
+  if (arena) for (const [dx, dy] of [[0, 0], [arena.w - 1, 0], [0, arena.h - 1], [arena.w - 1, arena.h - 1]]) braziers.push([arena.x + dx, arena.y + dy]);
+  // map of cell -> room index (for the minimap's room reveal)
+  used.forEach((o, i) => { for (let r = o.y; r < o.y + o.h; r++) for (let c = o.x; c < o.x + o.w; c++) cells[r][c].roomId = i; });
 
-  return { cells, rows: H, cols: W, spawns, braziers, decor, chest, portal, seed, rooms: used.length, exit: exitCell };
+  return {
+    cells, rows: H, cols: W, spawns, braziers, decor, chest, portal, seed, rooms: used.length, exit: exitCell,
+    roomRects: used.map((o) => ({ x: o.x, y: o.y, w: o.w, h: o.h, arena: !!o.arena })),
+    far: { x: far.x, y: far.y, w: far.w, h: far.h, cx: fc, cy: fr },
+    arena: arena && { x: arena.x, y: arena.y, w: arena.w, h: arena.h, cx: center(arena)[0], cy: center(arena)[1], entryDir: arena.entryDir || [0, 1] },
+  };
 }
 
 /** BFS on foot: same-level floors connect; stairs only along their direction. */

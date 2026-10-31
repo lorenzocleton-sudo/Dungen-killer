@@ -414,6 +414,36 @@ function clouds(seed) {
   return { p, a };
 }
 
+/** Generic mottled organic surface (fur, chitin, skins, foliage). */
+function mottled(seed, a, b, o = {}) {
+  const r = makeRng(seed);
+  const n = fbm(r, o.oct || [4, 8, 16, 32]), m = fbm(r, [8, 16]);
+  const p = new Pix();
+  p.fill((x, y, i) => {
+    let t = n[i];
+    if (o.streak) t = t * 0.6 + (Math.sin(x * 0.8 + n[i] * 8) * 0.5 + 0.5) * 0.4;
+    if (o.vstreak) t = t * 0.5 + (Math.sin(y * 1.6 + n[i] * 6) * 0.5 + 0.5) * 0.5;
+    const f = 0.8 + m[i] * 0.4 + (r() - 0.5) * (o.grain ?? 0.12);
+    return [(a[0] + (b[0] - a[0]) * t) * f, (a[1] + (b[1] - a[1]) * t) * f, (a[2] + (b[2] - a[2]) * t) * f];
+  });
+  for (let i = 0; i < (o.cracks || 0); i++) crack(p, r, 12, 0.55);
+  return p;
+}
+
+/** Glowing lava cracks in dark rock. */
+function lava(seed) {
+  const r = makeRng(seed);
+  const n = fbm(r, [4, 8, 16]);
+  const p = new Pix();
+  p.fill((x, y, i) => {
+    const v = Math.abs(n[i] - 0.5);
+    if (v < 0.05) { const k = 1 - v / 0.05; return [255 * (0.6 + k * 0.4), 120 * k + 40, 20 * k]; }
+    const f = 0.6 + n[i] * 0.4;
+    return [30 * f, 24 * f, 22 * f];
+  });
+  return p;
+}
+
 // ---------------------------------------------------------------- registry
 const GENERATORS = {
   stone: () => stoneBlocks(11),
@@ -441,6 +471,21 @@ const GENERATORS = {
   clothBrown: () => cloth(93, [56, 46, 34]),
   flesh: () => flesh(101),
   bone: () => bone(111),
+  fur: () => mottled(121, [34, 30, 28], [70, 62, 54], { streak: true }),
+  chitin: () => mottled(122, [16, 14, 20], [50, 40, 56], { oct: [4, 8, 16], cracks: 3 }),
+  impSkin: () => mottled(123, [60, 16, 10], [120, 40, 20], { cracks: 2 }),
+  ice: () => mottled(124, [120, 150, 170], [200, 225, 240], { oct: [2, 4, 8], cracks: 5, grain: 0.05 }),
+  // biome surfaces
+  hedge: () => mottled(131, [12, 20, 10], [40, 56, 26], { oct: [8, 16, 32], grain: 0.3 }),
+  bark: () => mottled(132, [30, 24, 18], [64, 50, 36], { vstreak: true, cracks: 3 }),
+  forestFloor: () => dirt(133, { base: [44, 40, 26], moss: true }),
+  swampRock: () => stoneBlocks(134, { base: [46, 50, 40], rowH: 32, widthSets: [[40, 24], [32, 32]], moss: true, mossBias: 0.5, mossBottom: 0.8, cracks: 6 }),
+  snow: () => mottled(135, [150, 158, 168], [210, 216, 224], { oct: [4, 8, 16], grain: 0.06 }),
+  iceWall: () => stoneBlocks(136, { base: [110, 130, 150], rowH: 32, widthSets: [[32, 32], [24, 40]], cracks: 8 }),
+  rock: () => mottled(137, [34, 30, 28], [74, 66, 58], { oct: [4, 8, 16, 32], cracks: 6 }),
+  mineFloor: () => cobble(138, { base: [56, 48, 40], gap: [24, 18, 14], count: 20 }),
+  lava: () => lava(139),
+  water: () => mottled(140, [14, 22, 16], [40, 60, 40], { oct: [2, 4, 8], grain: 0.04 }),
 };
 
 const ALPHA_GENERATORS = {

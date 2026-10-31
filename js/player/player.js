@@ -84,6 +84,11 @@ export class Player {
     return amount;
   }
 
+  /** Damage over time on the player (burning, poison). */
+  addDot(dps, duration, kind = 'burn') {
+    this.dot = { dps: Math.max(this.dot && this.dot.t > 0 ? this.dot.dps : 0, dps), t: Math.max(this.dot ? this.dot.t : 0, duration), tick: 0.5, kind };
+  }
+
   heal(amount) { this.hp = Math.min(this.maxHp, this.hp + amount); }
 
   update(dt, input, world) {
@@ -91,6 +96,10 @@ export class Player {
     this.yaw -= look.x;
     this.pitch = Math.max(-CONFIG.look.pitchLimit, Math.min(CONFIG.look.pitchLimit, this.pitch - look.y));
     if (this.invuln > 0) this.invuln -= dt;
+    if (this.dot && this.dot.t > 0 && !this.dead) {
+      this.dot.t -= dt; this.dot.tick -= dt;
+      if (this.dot.tick <= 0) { this.dot.tick = 0.5; const inv = this.invuln; this.invuln = 0; this.damage(Math.max(1, Math.round(this.dot.dps * 0.5))); this.invuln = inv; this.shake *= 0.5; }
+    }
     if (!this.dead && this.stats) {
       if (this.stats.regen) this.heal(this.stats.regen * dt);
       if (this.healOverTime > 0) { const h = Math.min(this.healOverTime, dt * 60); this.heal(h); this.healOverTime -= h; }

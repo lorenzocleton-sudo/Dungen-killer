@@ -10,7 +10,7 @@ export class EnemyManager {
   /** Fresh enemies every visit (the dead return when you come back). */
   spawn(area) {
     this.clear(area);
-    for (const s of area.enemySpawns || []) this.list.push(new Enemy(s.type, s.pos, area));
+    for (const s of area.enemySpawns || []) this.list.push(new Enemy(s.type, s.pos, area, s.opts || {}));
   }
 
   /** Spawn one enemy (or boss) at a world position - used by the admin menu and bosses. */
@@ -32,11 +32,11 @@ export class EnemyManager {
 
   update(dt) {
     const g = this.game;
-    const ctx = { player: g.player, collision: g.area.collision, enemies: this.list };
+    const ctx = { player: g.player, collision: g.area.collision, enemies: this.list, game: g };
     for (const e of this.list) {
       // far-away enemies sleep (and hide inside the fog) to save CPU/GPU on tablets
       const d2 = e.pos.distanceToSquared(g.player.pos);
-      e.group.visible = d2 < 900;
+      e.group.visible = d2 < 900 || e.def.boss;
       if (!e.dead && e.state === 'idle' && d2 > 900) continue;
       e.update(dt, ctx);
     }

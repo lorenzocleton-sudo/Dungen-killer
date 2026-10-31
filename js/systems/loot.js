@@ -10,7 +10,7 @@ export class LootSystem {
   constructor(game) {
     this.game = game;
     this.pickups = [];
-    events.on('enemyKilled', ({ enemy }) => this.roll(enemy.type, enemy.pos));
+    events.on('enemyKilled', ({ enemy }) => { if (enemy.def.boss) return; this.roll(enemy.type, enemy.pos, enemy.elite ? 2 : 0); if (enemy.elite) this.roll('chest', enemy.pos, 2); });
     events.on('areaChanged', () => this.clear());
   }
 
