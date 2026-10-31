@@ -432,6 +432,7 @@ export class Dungeon extends Area {
 
   onEnter() {
     this._flowC = null;
+    this.getNav();
     if (this.game.spawnEnemies) this.game.spawnEnemies(this);
   }
 

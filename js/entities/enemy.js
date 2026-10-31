@@ -178,6 +178,10 @@ export class Enemy {
     } else if (this.brain) {
       const r = this.brain.update(dt, ctx, dist, faceYaw, dy);
       moveSpeed = r.moveSpeed; targetYaw = r.targetYaw;
+      if (!this.brain.atk && moveSpeed > 0) {
+        const wp = this.navTo(dt, player.pos.x, player.pos.z, player.pos.y);
+        if (wp) targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z);
+      }
     } else {
       switch (this.state) {
         case 'chase': {
@@ -193,16 +197,22 @@ export class Enemy {
             break;
           }
           if (dist < d.range * this.sizeMul && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; break; }
-          let tx = player.pos.x, tz = player.pos.z;
-          const direct = Math.abs(dy) < 0.8 && dist < 6 && canSee;
-          if (!direct && this.area.stepToward) {
-            const wp = this.area.stepToward(this.pos, _wp);
-            if (wp) { tx = wp.x; tz = wp.z; }
-          }
-          targetYaw = Math.atan2(tx - this.pos.x, tz - this.pos.z);
-          moveSpeed = d.speed;
-          if (dist > d.giveUp) { this.lostTimer += dt; if (this.lostTimer > 4) { this.state = 'idle'; this.lostTimer = 0; } }
+          const wp = this.navTo(dt, player.pos.x, player.pos.z, player.pos.y);
+          if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = d.speed; }
+          // give up when unreachable or the player is far away: walk back home
+          if (!wp || dist > d.giveUp) { this.lostTimer += dt; if (this.lostTimer > (wp ? 4 : 2.5)) { this.state = 'return'; this.lostTimer = 0; this.path = null; } }
           else this.lostTimer = 0;
+          break;
+        }
+        case 'return': {
+          const hd = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z);
+          if (hd < 1.2) { this.state = 'idle'; this.timer = 1; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.25); break; }
+          const wp = this.navTo(dt, this.home.x, this.home.z, this.home.y);
+          if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = d.speed * 0.7; }
+          else { this.state = 'idle'; this.home.copy(this.pos); }
+          // re-engage if the player shows up close again
+          this.senseTimer -= dt;
+          if (this.senseTimer <= 0) { this.senseTimer = 0.4; if (dist < d.notice * 0.7 && Math.abs(dy) < 2 && this._canSee(player, collision)) this.state = 'chase'; }
           break;
         }
         case 'windup':
@@ -233,6 +243,16 @@ export class Enemy {
     }
 
     if (this.chillT > 0) moveSpeed *= 1 - this.chillPct / 100;
+    // stuck detection: barely moved for ~1s while trying to walk -> sidestep + repath
+    if (moveSpeed > 0.5 && (this.state === 'chase' || this.state === 'return' || this.brain)) {
+      this.stuckT = (this.stuckT || 0) + dt;
+      if (this.stuckT >= 1) {
+        const moved = this.stuckPos ? Math.hypot(this.pos.x - this.stuckPos.x, this.pos.z - this.stuckPos.z) : 9;
+        if (moved < 0.35) { this.path = null; this.repathT = 0; this.sidestep = { t: 0.6, dir: Math.random() < 0.5 ? -1 : 1 }; }
+        this.stuckPos = { x: this.pos.x, z: this.pos.z }; this.stuckT = 0;
+      }
+    } else this.stuckT = 0;
+    if (this.sidestep && this.sidestep.t > 0) { this.sidestep.t -= dt; targetYaw += this.sidestep.dir * Math.PI / 2; this.yaw = targetYaw; }
     let diff = targetYaw - this.yaw;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     const turnRate = this.state === 'windup' ? d.turn * 0.5 : d.turn;
@@ -241,6 +261,37 @@ export class Enemy {
     if (this.brain && this.brain.leaping) { this.group.rotation.y = this.yaw; this._animate(dt, 0); return; }
     this.move(dt, moveSpeed, ctx);
     this._animate(dt, moveSpeed);
+  }
+
+  /**
+   * Next point to walk toward (x,z) using the area's nav grid. Walks straight
+   * when the grid says the line is clear; otherwise follows an A* path that is
+   * recomputed every ~0.6-1.1s (or when the goal moves). null = unreachable.
+   */
+  navTo(dt, tx, tz, ty) {
+    const nav = this.area.getNav && this.area.getNav();
+    if (!nav) return { x: tx, z: tz };
+    const mk = nav.idx(this.pos.x, this.pos.z), tk = nav.idx(tx, tz);
+    if (nav.walkable(mk) && nav.walkable(tk) && Math.abs(ty - this.pos.y) < 0.6 && Math.hypot(tx - this.pos.x, tz - this.pos.z) < 14 && nav.lineClear(mk, tk)) {
+      this.path = null;
+      return { x: tx, z: tz };
+    }
+    this.repathT = (this.repathT ?? 0) - dt;
+    const moved = !this.navGoal || Math.hypot(tx - this.navGoal.x, tz - this.navGoal.z) > 1.5;
+    if (!this.path || this.repathT <= 0 || moved) {
+      if (Enemy.pathBudget <= 0) { this.repathT = 0.05; if (!this.path) return { x: tx, z: tz }; }
+      else {
+        Enemy.pathBudget--;
+        this.repathT = 0.6 + Math.random() * 0.5;
+        this.navGoal = { x: tx, z: tz };
+        this.path = nav.findPath(this.pos.x, this.pos.z, this.pos.y, tx, tz, ty);
+        this.pathI = 0;
+        if (!this.path) return null;
+      }
+    }
+    const P = this.path;
+    while (this.pathI < P.length - 1 && Math.hypot(P[this.pathI].x - this.pos.x, P[this.pathI].z - this.pos.z) < 0.7) this.pathI++;
+    return P[this.pathI];
   }
 
   _shoot(ctx) {
@@ -355,3 +406,6 @@ export class Enemy {
     for (const m of Object.values(this.model.mats)) m.dispose();
   }
 }
+
+/** A* searches allowed per frame across all enemies (reset by the manager). */
+Enemy.pathBudget = 4;

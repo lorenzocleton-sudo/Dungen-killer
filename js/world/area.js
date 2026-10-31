@@ -5,6 +5,7 @@ import { CollisionWorld } from '../engine/collision.js';
 import { StaticBatcher } from '../engine/geometry.js';
 import { TorchLightPool } from '../engine/lights.js';
 import { ParticleSystem } from '../engine/particles.js';
+import { NavGrid, collisionBounds } from '../engine/nav.js';
 
 export class Area {
   constructor(game, id, name) {
@@ -48,6 +49,16 @@ export class Area {
 
   finish() {
     this.batcher.build(this.scene);
+  }
+
+  /** Lazily built navigation grid for enemy pathfinding. */
+  getNav() {
+    if (!this.nav) {
+      const t = performance.now();
+      this.nav = new NavGrid(this.collision, this.navBounds || collisionBounds(this.collision));
+      this.navBuildMs = Math.round(performance.now() - t);
+    }
+    return this.nav;
   }
 
   addEmitter(pos, rate, fn) {

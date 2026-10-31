@@ -32,6 +32,7 @@ export class EnemyManager {
 
   update(dt) {
     const g = this.game;
+    Enemy.pathBudget = 4;
     const ctx = { player: g.player, collision: g.area.collision, enemies: this.list, game: g };
     for (const e of this.list) {
       // far-away enemies sleep (and hide inside the fog) to save CPU/GPU on tablets
