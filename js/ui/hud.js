@@ -66,6 +66,13 @@ export class HUD {
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
   }
 
+  /** NPC speech line, bottom centre. */
+  speak(text, secs = 4.5) {
+    const el = document.getElementById('speech');
+    el.textContent = text; el.classList.add('show');
+    clearTimeout(this._sp); this._sp = setTimeout(() => el.classList.remove('show'), secs * 1000);
+  }
+
   setSprint(on) { document.getElementById('sprint-ind').classList.toggle('show', on); }
 
   /** Context prompt; on touch the USE button doubles as the action. */

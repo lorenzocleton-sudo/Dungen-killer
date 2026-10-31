@@ -9,7 +9,7 @@ const _wp = new THREE.Vector3();
 let nextId = 1;
 
 export class Enemy {
-  constructor(type, pos, area) {
+  constructor(type, pos, area, opts = {}) {
     this.id = nextId++;
     this.type = type;
     this.def = ENEMY_TYPES[type];
@@ -20,8 +20,11 @@ export class Enemy {
     this.home = pos.clone();
     this.vel = new THREE.Vector3();
     this.yaw = Math.random() * Math.PI * 2;
-    this.hp = this.def.hp;
-    this.maxHp = this.def.hp;
+    this.level = opts.level || 1;
+    this.hpMul = (opts.hpMul || 1) * (1 + (this.level - 1) * 0.3);
+    this.dmgMul = (opts.dmgMul || 1) * (1 + (this.level - 1) * 0.18);
+    this.hp = Math.round(this.def.hp * this.hpMul);
+    this.maxHp = this.hp;
     this.state = 'idle';
     this.timer = Math.random();
     this.anim = Math.random() * 10;
@@ -62,30 +65,41 @@ export class Enemy {
     }
   }
 
-  /** Set on fire: damage over time (refreshes, keeps the stronger burn). */
-  ignite(dps, duration) {
+  /** Damage-over-time: kind 'burn' | 'bleed' | 'poison'. Keeps the stronger effect. */
+  dot(kind, dps, duration) {
     if (this.dead) return;
-    this.burnDps = Math.max(this.burnDps || 0, dps);
-    this.burnT = Math.max(this.burnT || 0, duration);
-    this.burnTick = this.burnTick || 0.5;
+    const d = (this.dots || (this.dots = {}))[kind] || (this.dots[kind] = { dps: 0, t: 0, tick: 0.5 });
+    d.dps = Math.max(d.t > 0 ? d.dps : 0, dps);
+    d.t = Math.max(d.t, duration);
   }
 
+  ignite(dps, duration) { this.dot('burn', dps, duration); }
+
+  /** Slow movement + attacks (frost effects). */
+  chill(pct, duration) { this.chillPct = Math.max(this.chillT > 0 ? this.chillPct : 0, pct); this.chillT = Math.max(this.chillT || 0, duration); }
+
+  get burning() { return !!(this.dots && this.dots.burn && this.dots.burn.t > 0); }
+
   _updateBurn(dt) {
-    if (!(this.burnT > 0) || this.dead) return;
-    this.burnT -= dt;
-    this.burnTick -= dt;
-    if (Math.random() < dt * 25) {
-      this.area.glow.emit(this.pos.x + (Math.random() - 0.5) * 0.5, this.pos.y + Math.random() * this.def.height, this.pos.z + (Math.random() - 0.5) * 0.5,
-        0, 1.2, 0, 0.5, [1, 0.45, 0.1], 0.05, 0, 0);
+    if (this.chillT > 0) this.chillT -= dt;
+    if (!this.dots || this.dead) return;
+    const col = { burn: [1, 0.45, 0.1], bleed: [0.6, 0.04, 0.02], poison: [0.4, 0.8, 0.2] };
+    for (const [kind, d] of Object.entries(this.dots)) {
+      if (d.t <= 0) continue;
+      d.t -= dt; d.tick -= dt;
+      if (Math.random() < dt * 18) {
+        const sys = kind === 'burn' ? this.area.glow : this.area.dust;
+        sys.emit(this.pos.x + (Math.random() - 0.5) * 0.5, this.pos.y + Math.random() * this.def.height, this.pos.z + (Math.random() - 0.5) * 0.5,
+          0, kind === 'burn' ? 1.2 : -0.8, 0, 0.5, col[kind], 0.05, 0, 0);
+      }
+      if (d.tick <= 0) {
+        d.tick = 0.5;
+        const dmg = Math.max(1, Math.round(d.dps * 0.5));
+        this.hp -= dmg;
+        events.emit('enemyDot', { enemy: this, amount: dmg, kind });
+        if (this.hp <= 0) { this.die(); return; }
+      }
     }
-    if (this.burnTick <= 0) {
-      this.burnTick = 0.5;
-      const dmg = Math.max(1, Math.round(this.burnDps * 0.5));
-      this.hp -= dmg;
-      events.emit('enemyDot', { enemy: this, amount: dmg });
-      if (this.hp <= 0) this.die();
-    }
-    if (this.burnT <= 0) this.burnDps = 0;
   }
 
   die() {
@@ -162,7 +176,7 @@ export class Enemy {
           this._struck = true;
           let ang = faceYaw - this.yaw; ang = Math.atan2(Math.sin(ang), Math.cos(ang));
           if (dist < d.reach + 0.3 && Math.abs(ang) < 1.2 && Math.abs(dy) < 1.4) {
-            player.damage(Math.round(d.damage * (0.85 + Math.random() * 0.3)), this.pos);
+            player.damage(Math.round(d.damage * this.dmgMul * (0.85 + Math.random() * 0.3)), this.pos, this);
           }
           // lunge
           this.vel.x += Math.sin(this.yaw) * 2.5; this.vel.z += Math.cos(this.yaw) * 2.5;
@@ -178,6 +192,7 @@ export class Enemy {
         break;
     }
 
+    if (this.chillT > 0) moveSpeed *= 1 - this.chillPct / 100;
     // turn
     let diff = targetYaw - this.yaw;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));

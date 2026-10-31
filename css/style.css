@@ -268,3 +268,33 @@ body.touch #btn-use.show { display: flex !important; }
 @keyframes stflash { 0%, 100% { border-color: #2e3424; } 50% { border-color: #e0c060; } }
 #btn-roll { position: absolute; right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 14px); bottom: calc(9vh + 72px); width: 58px; height: 58px; border-radius: 50%; font-size: 13px;
   align-items: center; justify-content: center; pointer-events: auto; z-index: 5; touch-action: none; background: rgba(20, 14, 10, 0.6); border: 2px solid rgba(120, 100, 70, 0.6); color: #c8b890; }
+
+/* ---------------------------------------------------------------- big skill tree (scroll + zoom) */
+.tree-view { position: relative; flex: 1; min-height: 360px; overflow: auto; border: 1px solid #2e261e;
+  background: radial-gradient(ellipse at 50% 100%, #1a140e, #0a0807 70%); -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+.tree-sizer { position: relative; }
+.tree-view .tree { position: absolute; left: 0; top: 0; transform-origin: 0 0; min-height: 0; flex: none; background: none; border: none; }
+.tree-view .tree svg { position: absolute; left: 0; top: 0; width: 1000px; height: 1600px; inset: auto; }
+.tree-view .node { width: 70px; min-height: 42px; font-size: 11px; }
+.tree-view .node.cap { width: 84px; min-height: 60px; border-radius: 50%; }
+.tree-view .node.hyb { border-style: dashed; }
+.tree-view .branch-label { font-size: 16px; }
+.klock { position: absolute; top: -9px; right: -6px; font-size: 13px; color: #e0b060; }
+.tree-zoom { position: sticky; top: 6px; left: 6px; z-index: 3; display: inline-flex; gap: 4px; margin: 6px; }
+.tree-zoom button { padding: 4px 12px; font-size: 18px; }
+@media (max-width: 760px), (max-height: 520px) { .tree-view { flex: none; height: 60vh; } }
+.status-layout { display: flex; gap: 16px; flex-wrap: wrap; }
+.status-main { flex: 1; min-width: 260px; }
+.status-side { flex: 0 0 min(300px, 100%); }
+.rank-title { font-size: 30px; color: #f0d090; letter-spacing: 3px; font-variant: small-caps; }
+.rank-score { color: #a89878; margin-bottom: 6px; }
+.rank-bar { height: 10px; background: #241c14; border: 1px solid #4a3e30; margin-bottom: 10px; }
+.rank-bar span { display: block; height: 100%; background: linear-gradient(90deg, #8a6a30, #e0b060); }
+.rank-parts small { color: #6a6050; margin-left: 6px; }
+.ladder-step { display: flex; justify-content: space-between; padding: 4px 8px; border-left: 3px solid #2e261e; color: #6a6050; }
+.ladder-step.got { color: #c8b890; border-color: #8a6a40; } .ladder-step.cur { background: #2a2016; color: #f0d090; border-color: #e0b060; }
+.perks { padding-left: 18px; color: #a89878; font-size: 13px; }
+.locked-stock { color: #8a7e68; font-style: italic; font-size: 13px; padding: 6px 4px; }
+#speech { position: absolute; left: 50%; transform: translateX(-50%); bottom: 30%; max-width: min(640px, 90vw); text-align: center; padding: 10px 16px;
+  background: rgba(10, 8, 6, 0.82); border: 1px solid #4a3e30; color: #e0d4b8; font-style: italic; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+#speech.show { opacity: 1; }

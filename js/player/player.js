@@ -73,12 +73,13 @@ export class Player {
     this.velocity.set(0, 0, 0);
   }
 
-  damage(amount, sourcePos) {
+  damage(amount, sourcePos, source) {
     if (this.dead || this.invuln > 0 || this.god) return 0;
     if (this.stats) amount = Math.max(1, Math.round(amount * (1 - this.stats.defense / 100)));
     this.hp = Math.max(0, this.hp - amount);
     this.shake = Math.min(1, this.shake + 0.5 + amount / 40);
-    events.emit('playerDamaged', { amount, hp: this.hp, sourcePos });
+    events.emit('playerDamaged', { amount, hp: this.hp, sourcePos, source });
+    if (this.hp <= 0 && this.cheatDeath && this.cheatDeath()) { this.hp = 1; this.invuln = 2; }
     if (this.hp <= 0) { this.dead = true; events.emit('playerDied', {}); }
     return amount;
   }

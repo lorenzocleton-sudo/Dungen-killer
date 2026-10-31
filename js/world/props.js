@@ -395,14 +395,18 @@ export function npc(area, def) {
     },
   });
   (area.npcs || (area.npcs = [])).push(n);
+  if (def.name && def.talk !== false) {
+    const it = interactable(area, n.pos, 2.2, `Talk to ${def.name}`, () => area.game.hud.speak(def.line ? `${def.name}: "${def.line}"` : area.game.renown.greeting(def.name)), true);
+    n.talk = it;
+  }
   return n;
 }
 
 // ------------------------------------------------------------------ interactables
 
 /** Register something the player can use with E / Y / the USE button. */
-export function interactable(area, pos, radius, label, onUse) {
-  const it = { pos: pos.clone(), radius, label, onUse, enabled: true };
+export function interactable(area, pos, radius, label, onUse, live = false) {
+  const it = { pos: live ? pos : pos.clone(), radius, label, onUse, enabled: true };
   area.interactables.push(it);
   return it;
 }
@@ -640,6 +644,7 @@ export function hero(area, def) {
     },
   });
   (area.npcs || (area.npcs = [])).push({ def, group: g, pos });
+  if (def.name) interactable(area, pos, 2.4, `Talk to ${def.name}`, () => area.game.hud.speak(area.game.renown.heroComment(def.name)), true);
   return g;
 }
 

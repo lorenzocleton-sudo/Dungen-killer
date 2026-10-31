@@ -8,6 +8,7 @@ import { CONFIG } from '../config.js';
 import { events } from '../engine/events.js';
 import { newProgression, SKILL_MAP, learnBlocker, rankOf } from './skills.js';
 import { ITEMS } from './items.js';
+import { newRenown } from './renown.js';
 
 export function emptyInventory() {
   return { currency: 0, items: [] }; // items: { uid, id, qty }
@@ -25,6 +26,9 @@ export class GameState {
     this.inRun = false;
     this.nextUid = 1;
     this.stats = { deaths: 0, kills: 0, runs: 0 };
+    this.renown = newRenown();
+    this.pity = { sinceRare: 0, sinceLegendary: 0 };
+    this.world = { deepest: 0, bosses: {}, homeChests: {}, kingGift: false, lore: {} };
     // starting kit
     const sword = this.addItem('rusted_sword');
     this.equipped.weapon = sword.uid;
@@ -86,7 +90,11 @@ export class GameState {
   }
 
   get currency() { return this.saved.currency + this.run.currency; }
-  addCurrency(n) { this._inv().currency += n; events.emit('inventoryChanged', {}); }
+  addCurrency(n) {
+    this._inv().currency += n;
+    if (n > 0) events.emit('ashesEarned', { amount: n });
+    events.emit('inventoryChanged', {});
+  }
   spend(n) {
     if (this.saved.currency < n) return false;
     this.saved.currency -= n;
@@ -122,9 +130,9 @@ export class GameState {
   }
 
   // -------------------------------------------------------- skills (trainer only)
-  learn(id) {
+  learn(id, renownRank = 0) {
     const node = SKILL_MAP[id];
-    const why = learnBlocker(this.progression, node, this.saved.currency);
+    const why = learnBlocker(this.progression, node, this.saved.currency, renownRank);
     if (why) return why;
     this.progression.skillPoints -= node.points;
     this.saved.currency -= node.fee;
@@ -186,8 +194,11 @@ export class GameState {
   // -------------------------------------------------------- persistence
   serialize() {
     return JSON.stringify({
-      version: 2,
+      version: 3,
       saved: this.saved,
+      renown: this.renown,
+      pity: this.pity,
+      world: this.world,
       equipped: this.equipped,
       nextUid: this.nextUid,
       progression: this.progression,
@@ -208,11 +219,19 @@ export class GameState {
       const d = JSON.parse(raw);
       if (!d) return false;
       if (d.version === 1) return this._loadV1(d);
-      if (d.version !== 2) return false;
+      if (d.version !== 2 && d.version !== 3) return false;
+      // v2 -> v3: renown, pity counters and world progress default to fresh
+      if (d.version === 3) {
+        this.renown = Object.assign(newRenown(), d.renown);
+        this.pity = Object.assign({ sinceRare: 0, sinceLegendary: 0 }, d.pity);
+        this.world = Object.assign(this.world, d.world);
+      }
       this.saved = { currency: d.saved.currency || 0, items: (d.saved.items || []).filter((i) => ITEMS[i.id]) };
       this.equipped = d.equipped || {};
       this.nextUid = d.nextUid || 1000;
       this.progression = Object.assign(newProgression(), d.progression);
+      // drop skills that no longer exist, refunding their points
+      for (const id of Object.keys(this.progression.skills)) if (!SKILL_MAP[id]) { this.progression.skillPoints += this.progression.skills[id]; delete this.progression.skills[id]; }
       this.clockTime = +d.clock || 0;
       this.stats = Object.assign(this.stats, d.stats);
       if (!this.find(this.equipped.weapon)) this.equipped.weapon = this.addItemSaved('rusted_sword').uid;

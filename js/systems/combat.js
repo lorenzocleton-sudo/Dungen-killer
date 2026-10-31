@@ -5,7 +5,6 @@
 import * as THREE from '../../lib/three.module.min.js';
 import { Weapon } from '../player/weapon.js';
 import { events } from '../engine/events.js';
-import { addXp } from './skills.js';
 import { computeStats } from './stats.js';
 import { ITEMS } from './items.js';
 
@@ -27,12 +26,32 @@ export class CombatSystem {
     this.nextCrit = false;
     this.flaskCooldown = 0;
 
-    events.on('playerDamaged', ({ amount }) => {
+    events.on('playerDamaged', ({ amount, source }) => {
+      const th = this.stats && this.stats.thornsPct;
+      if (th && source && !source.dead && source.takeHit) {
+        const r = Math.max(1, Math.round(amount * th / 100));
+        source.takeHit(r, game.player.pos, 0.2);
+        game.hud.damageNumber(source.headPos(_v), r, 'burn');
+      }
       this.flash = Math.min(1, 0.5 + amount / 30);
       const p = game.player;
       game.hud.damageNumber(_v.set(p.pos.x + p.forward.x * 0.8, p.eyeY - 0.3, p.pos.z + p.forward.z * 0.8), amount, 'player');
     });
-    events.on('enemyKilled', ({ enemy }) => this.reward(enemy));
+    events.on('enemyKilled', ({ enemy }) => {
+      this.reward(enemy);
+      // Phoenix Brand: flames jump from burning corpses
+      if (this.stats && this.stats.burnSpread && enemy.burning) {
+        for (const e of game.enemies.list) if (!e.dead && e !== enemy && e.pos.distanceTo(enemy.pos) < 4) e.ignite(this.stats.burnDps * (1 + this.stats.burnPct / 100) || 4, 3);
+        game.area.glow.burst(enemy.pos.x, enemy.pos.y + 0.5, enemy.pos.z, 24, 4, 0.6, [1, 0.5, 0.15], 0.06, -2, 1);
+      }
+    });
+    game.player.cheatDeath = () => {
+      if (!this.stats || !this.stats.cheatDeath || this.lastStandUsed || !game.area.hostile) return false;
+      this.lastStandUsed = true;
+      game.hud.feed('LAST STAND!', '#ff7050');
+      return true;
+    };
+    events.on('areaChanged', () => { this.lastStandUsed = false; });
     events.on('enemyDot', ({ enemy, amount }) => game.hud.damageNumber(enemy.headPos(_v), amount, 'burn'));
     events.on('equipmentChanged', () => this.refreshStats());
   }
@@ -74,12 +93,17 @@ export class CombatSystem {
 
       const [lo, hi] = PLAYER_ATTACK.damage;
       let dmg = (lo + Math.random() * (hi - lo)) * (1 + s.damagePct / 100);
+      if (s.firstStrikePct && e.hp >= e.maxHp) dmg *= 1 + s.firstStrikePct / 100;
+      if (s.berserkPct && p.hp < p.maxHp * 0.4) dmg *= 1 + s.berserkPct / 100;
+      if (s.rollStrikePct && performance.now() - (p.lastRollAt || -1e9) < 1000) dmg *= 1 + s.rollStrikePct / 100;
       if (s.executePct && e.hp < e.maxHp * 0.3) dmg *= 1 + s.executePct / 100;
       const crit = this.nextCrit || Math.random() * 100 < s.critChance;
       this.nextCrit = false;
       if (crit) dmg *= 1 + s.critDmgPct / 100;
       dmg = Math.round(dmg);
-      this._damageEnemy(e, dmg, crit ? 'crit' : '');
+      this._damageEnemy(e, dmg, crit ? 'crit' : '', 1 + (s.staggerPct || 0) / 100);
+      if (s.bleedDps && !e.dead) e.dot('bleed', s.bleedDps, 4);
+      if (s.chillPct && !e.dead) e.chill(Math.min(70, s.chillPct), 2.5);
       if (s.lifesteal) p.heal(dmg * s.lifesteal / 100);
       if (s.burnDps && !e.dead) e.ignite(s.burnDps * (1 + s.burnPct / 100), 3 * (1 + s.burnPct / 100));
       if (crit && s.emberBurst) this.emberBurst(e, s.emberBurst);
@@ -125,10 +149,10 @@ export class CombatSystem {
     g.state.addCurrency(ashes);
     g.state.stats.kills++;
     if (s.killHeal) g.player.heal(s.killHeal);
+    if (s.killStamina) g.player.stamina = Math.min(g.player.maxStamina, g.player.stamina + s.killStamina);
     if (s.deathDance) this.nextCrit = true;
-    const lv = addXp(g.state.progression, d.xp);
     g.hud.feed(`${d.name} falls  +${ashes} ashes`);
-    if (lv) g.hud.feed(`Level ${g.state.progression.level}! Skill point gained - visit the Hall of Paths`, '#e0b060');
+    g.giveXp(Math.round(d.xp * (enemy.level ? 1 + (enemy.level - 1) * 0.25 : 1)));
     events.emit('loot', { enemy, ashes });
   }
 
@@ -153,6 +177,18 @@ export class CombatSystem {
     if (g.input.consume('flask')) this.drinkFlask();
     if (this.flaskCooldown > 0) this.flaskCooldown -= dt;
     this.weapon.update(dt, p);
+    // Phantom Blade: rolling through enemies cuts them
+    if (p.roll) {
+      p.lastRollAt = performance.now();
+      if (this.stats.rollDamage) {
+        if (!p.roll.hit) p.roll.hit = new Set();
+        for (const e of g.enemies.list) {
+          if (e.dead || p.roll.hit.has(e) || e.pos.distanceTo(p.pos) > e.radius + 0.9) continue;
+          p.roll.hit.add(e);
+          this._damageEnemy(e, Math.round(this.stats.rollDamage * (1 + this.stats.damagePct / 100)), 'crit', 0.5);
+        }
+      }
+    }
     this.flash = Math.max(0, this.flash - dt * 2.2);
     g.renderer.postUniforms.uFlash.value = this.flash;
     // the hub is safe: wounds slowly close in town

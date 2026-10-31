@@ -16,6 +16,8 @@ import { Dungeon, RandomDungeon } from './world/dungeon.js';
 import { Screens } from './ui/screens.js';
 import { AdminMenu, DEBUG_DEFAULTS } from './ui/admin.js';
 import { addXp } from './systems/skills.js';
+import { Renown } from './systems/renown.js';
+import { ENEMY_TYPES } from './entities/enemyTypes.js';
 import { EnemyManager } from './entities/enemyManager.js';
 import { CombatSystem } from './systems/combat.js';
 import { LootSystem } from './systems/loot.js';
@@ -63,6 +65,9 @@ class Game {
     this.loot = new LootSystem(this);
     this.systems = [this.enemies, this.combat, this.loot]; // pluggable: { update(dt, game) }
     this.admin = new AdminMenu(this);
+    this.renown = new Renown(this);
+    this.renown.noteSkills();
+    this.renown.lastRank = this.renown.rankIndex;
     this.deathTimer = 0;
     events.on('playerDied', () => this.onPlayerDeath());
     events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
@@ -178,6 +183,8 @@ class Game {
     this.input.requestLock();
   }
 
+  enemyName(type) { return ENEMY_TYPES[type] ? ENEMY_TYPES[type].name : type; }
+
   /** XP with level-up feedback (used by kills and the admin menu). */
   giveXp(n) {
     const lv = addXp(this.state.progression, n);
@@ -215,6 +222,7 @@ class Game {
     GameState.wipe();
     this.state = new GameState();
     this.clock = new WorldClock(0);
+    this.renown.lastRank = 0;
     this.combat.refreshStats();
     this.player.hp = this.player.maxHp;
     this.closeMenu();
