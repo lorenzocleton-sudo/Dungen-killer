@@ -55,6 +55,9 @@ export class Area {
   }
 
   onEnter(from) {}
+
+  /** [hemisphere, point] intensities for the first-person weapon. */
+  weaponLighting() { return [0.5, 2.6]; }
   onExit() {}
 
   update(dt, player) {

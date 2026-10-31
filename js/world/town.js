@@ -217,6 +217,8 @@ export class Town extends Area {
     this.dustColor = p.dust;
   }
 
+  weaponLighting() { return this.phase === 'day' ? [1.6, 0.1] : [0.5, 2.2]; }
+
   onEnter() {
     this.applyPhase(this.game.clock.phase);
   }

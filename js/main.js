@@ -13,6 +13,8 @@ import { GameState } from './systems/state.js';
 import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
 import { Dungeon } from './world/dungeon.js';
+import { EnemyManager } from './entities/enemyManager.js';
+import { CombatSystem } from './systems/combat.js';
 
 // Registry of areas. New areas register a factory here.
 const AREA_FACTORIES = {
@@ -49,7 +51,9 @@ class Game {
     this.paused = true;        // until the title screen is dismissed
     this.started = false;
     this.saveTimer = 0;
-    this.systems = [];         // pluggable systems: { update(dt, game) }
+    this.enemies = new EnemyManager(this);
+    this.combat = new CombatSystem(this);
+    this.systems = [this.enemies, this.combat]; // pluggable: { update(dt, game) }
 
     this.input.onDeviceChange = (d) => this.hud.setDevice(d);
     this.hud.setDevice(this.input.device);
@@ -143,6 +147,9 @@ class Game {
   }
 
   // ------------------------------------------------------------ areas
+  spawnEnemies(area) { this.enemies.spawn(area); }
+  clearEnemies(area) { this.enemies.clear(area); }
+
   getArea(id) {
     if (!this.areas[id]) {
       const a = AREA_FACTORIES[id](this);
@@ -162,6 +169,8 @@ class Game {
       const sp = this.area.spawns[spawnName] || this.area.spawns.start || Object.values(this.area.spawns)[0];
       this.player.place(sp.pos.x, sp.pos.y, sp.pos.z, sp.yaw);
       this.area.onEnter(prev);
+      const wl = this.area.weaponLighting();
+      this.combat.weapon.setLighting(wl[0], wl[1]);
       this.portalCooldown = 1.0;
       events.emit('areaChanged', { id, prev: prev && prev.id });
     };
