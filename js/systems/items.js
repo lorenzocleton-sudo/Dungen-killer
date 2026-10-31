@@ -41,6 +41,51 @@ export const ITEMS = {
   vigor_ring: { name: 'Ring of Vigor', kind: 'gear', slot: 'ring', value: 220, stats: { maxHp: 30 }, icon: ['○', '#c04040'], desc: 'Your heart beats a little louder.' },
 };
 
+// ------------------------------------------------------------ reward rarities
+// special  : a little better than shop gear, never overpowered
+// rare     : good stats + one special effect
+// legendary: unique, build-defining effect
+export const RARITY = {
+  normal: { name: 'Common', color: '#8a7e68' },
+  special: { name: 'Special', color: '#5a9ad8' },
+  rare: { name: 'Rare', color: '#b468e0' },
+  legendary: { name: 'Legendary', color: '#ff8a20' },
+};
+
+const R = (rarity, id, def) => { ITEMS[id] = { ...def, rarity, kind: 'gear' }; return id; };
+const S = 'special', RR = 'rare', L = 'legendary';
+export const RARITY_ITEMS = {
+  special: [
+    R(S, 'warden_blade', { name: 'Warden\'s Longsword', slot: 'weapon', model: 'longsword', value: 260, stats: { damagePct: 22, reach: 0.3 }, icon: ['⚔', '#9ac0e8'], desc: 'Kept sharp by a jailer who never sleeps.' }),
+    R(S, 'bone_cleaver', { name: 'Bone Cleaver', slot: 'weapon', model: 'axe', value: 300, stats: { damagePct: 34, attackSpeedPct: -6 }, icon: ['⚒', '#9ac0e8'], desc: 'Heavy, notched, honest.' }),
+    R(S, 'scout_hood', { name: 'Scout\'s Hood', slot: 'head', value: 150, stats: { maxHp: 12, speedPct: 4 }, icon: ['◓', '#9ac0e8'], desc: 'Light, and good for hearing footsteps.' }),
+    R(S, 'iron_coif', { name: 'Riveted Coif', slot: 'head', value: 200, stats: { maxHp: 20, defense: 7 }, icon: ['◓', '#9ac0e8'], desc: 'Solid rings, solid head.' }),
+    R(S, 'brigandine', { name: 'Brigandine', slot: 'chest', value: 320, stats: { maxHp: 35, defense: 10 }, icon: ['▣', '#9ac0e8'], desc: 'Plates sewn between cloth.' }),
+    R(S, 'runner_coat', { name: 'Runner\'s Coat', slot: 'chest', value: 260, stats: { maxHp: 15, maxStamina: 20, speedPct: 5 }, icon: ['▣', '#9ac0e8'], desc: 'For those who live by leaving.' }),
+    R(S, 'grip_gloves', { name: 'Grip Gloves', slot: 'hands', value: 220, stats: { attackSpeedPct: 9, damagePct: 4 }, icon: ['✋', '#9ac0e8'], desc: 'Tar on the palms.' }),
+    R(S, 'guard_gauntlets', { name: 'Guard Gauntlets', slot: 'hands', value: 240, stats: { defense: 5, maxHp: 15 }, icon: ['✋', '#9ac0e8'], desc: 'Dented by many blocked blows.' }),
+    R(S, 'wind_ring', { name: 'Ring of Breath', slot: 'ring', value: 260, stats: { staminaRegenPct: 20, maxStamina: 10 }, icon: ['○', '#9ac0e8'], desc: 'Your lungs feel larger.' }),
+    R(S, 'luck_ring', { name: 'Gravedigger\'s Ring', slot: 'ring', value: 240, stats: { dropPct: 20, ashPct: 10 }, icon: ['○', '#9ac0e8'], desc: 'Dug up, cleaned, worn.' }),
+  ],
+  rare: [
+    R(RR, 'bloodletter', { name: 'Bloodletter', slot: 'weapon', model: 'longsword', value: 600, stats: { damagePct: 30, bleedDps: 5 }, icon: ['⚔', '#c890f0'], desc: 'Special: every hit opens a bleeding wound.' }),
+    R(RR, 'frostbrand', { name: 'Frostbrand', slot: 'weapon', model: 'ashblade', value: 650, stats: { damagePct: 28, chillPct: 40 }, icon: ['⚔', '#a0d8ff'], desc: 'Special: hits chill enemies, slowing them 40%.' }),
+    R(RR, 'ember_crown', { name: 'Crown of Cinders', slot: 'head', value: 600, stats: { maxHp: 25, burnDps: 5 }, icon: ['◓', '#c890f0'], desc: 'Special: your hits set enemies alight.' }),
+    R(RR, 'thorn_mail', { name: 'Thornmail', slot: 'chest', value: 700, stats: { maxHp: 45, defense: 12, thornsPct: 25 }, icon: ['▣', '#c890f0'], desc: 'Special: attackers take 25% of their damage.' }),
+    R(RR, 'vampire_grip', { name: 'Vampire Grip', slot: 'hands', value: 650, stats: { attackSpeedPct: 8, lifesteal: 8 }, icon: ['✋', '#c890f0'], desc: 'Special: heal 8% of damage dealt.' }),
+    R(RR, 'dancer_wraps', { name: 'Dancer\'s Wraps', slot: 'hands', value: 620, stats: { speedPct: 6, rollIframes: 0.15 }, icon: ['✋', '#c890f0'], desc: 'Special: rolls grant longer invulnerability.' }),
+    R(RR, 'reaper_ring', { name: 'Reaper\'s Band', slot: 'ring', value: 680, stats: { critChance: 6, killStamina: 20 }, icon: ['○', '#c890f0'], desc: 'Special: kills restore 20 stamina.' }),
+    R(RR, 'hunter_ring', { name: 'Hunter\'s Seal', slot: 'ring', value: 700, stats: { damagePct: 8, firstStrikePct: 40 }, icon: ['○', '#c890f0'], desc: 'Special: +40% damage to unwounded foes.' }),
+  ],
+  legendary: [
+    R(L, 'kingsbane', { name: 'Kingsbane', slot: 'weapon', model: 'ashblade', value: 2500, stats: { damagePct: 55, critChance: 8, chainHit: 2 }, icon: ['⚔', '#ffb050'], desc: 'LEGENDARY: every hit arcs to 2 more enemies nearby.' }),
+    R(L, 'phoenix_heart', { name: 'Heart of the Phoenix', slot: 'ring', value: 2500, stats: { regen: 2, cheatDeath: 1, maxHp: 30 }, icon: ['○', '#ffb050'], desc: 'LEGENDARY: once per visit, death leaves you standing.' }),
+    R(L, 'nameless_shroud', { name: 'Shroud of the Nameless', slot: 'chest', value: 2500, stats: { maxHp: 40, rollIframes: 0.15, rollNova: 30 }, icon: ['▣', '#ffb050'], desc: 'LEGENDARY: rolling releases a frost nova (30 dmg, chills).' }),
+    R(L, 'colossus_fists', { name: 'Fists of the Colossus', slot: 'hands', value: 2500, stats: { damagePct: 20, quakeChance: 20 }, icon: ['✋', '#ffb050'], desc: 'LEGENDARY: 20% of hits shake the earth (45 dmg, 3m).' }),
+    R(L, 'ashen_kings_crown', { name: 'Crown of the Ashen Kings', slot: 'head', value: 2500, stats: { maxHp: 30, killExplode: 35, burnDps: 4 }, icon: ['◓', '#ffb050'], desc: 'LEGENDARY: slain foes explode in flame (35 dmg).' }),
+  ],
+};
+
 /** What the Ashen Market sells. */
 export const SHOP_STOCK = [
   'ashen_flask', 'leather_hood', 'gambeson', 'rusted_ring', 'hunter_gloves', 'longsword',
@@ -68,6 +113,8 @@ export function itemDef(id) { return ITEMS[id]; }
 export function sellPrice(id) { return Math.max(1, Math.floor((ITEMS[id]?.value || 0) * SELL_RATE)); }
 
 export function statLine(stats = {}) {
-  const lbl = { maxHp: 'HP', defense: '% defense', damagePct: '% damage', attackSpeedPct: '% attack speed', critChance: '% crit', speedPct: '% move speed', reach: 'm reach' };
+  const lbl = { maxHp: 'HP', defense: '% defense', damagePct: '% damage', attackSpeedPct: '% attack speed', critChance: '% crit', speedPct: '% move speed', reach: 'm reach',
+    maxStamina: 'stamina', staminaRegenPct: '% stamina regen', dropPct: '% drops', ashPct: '% ashes', bleedDps: 'bleed/s', chillPct: '% chill', burnDps: 'burn/s', thornsPct: '% thorns',
+    lifesteal: '% lifesteal', rollIframes: 's roll i-frames', killStamina: 'stamina per kill', firstStrikePct: '% first strike', regen: 'HP/s', cheatDeath: 'revive', chainHit: 'chain', rollNova: 'roll nova', quakeChance: '% quake', killExplode: 'kill blast' };
   return Object.entries(stats).map(([k, v]) => `${v > 0 ? '+' : ''}${v}${lbl[k] && lbl[k][0] === '%' || lbl[k] && lbl[k][0] === 'm' ? '' : ' '}${lbl[k] || k}`).join(', ');
 }

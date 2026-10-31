@@ -303,3 +303,10 @@ body.touch #btn-use.show { display: flex !important; }
 .bb-name { color: #e0d0b0; font-size: 17px; letter-spacing: 3px; font-variant: small-caps; margin-bottom: 3px; }
 .bb-track { height: 10px; background: #120806; border: 2px solid #4a3a2a; box-shadow: 0 0 0 1px #000; }
 .bb-fill { height: 100%; width: 100%; background: linear-gradient(#a02818, #601008); transition: width 0.2s; }
+#minimap { position: absolute; right: max(14px, env(safe-area-inset-right)); top: 54px; width: 140px; height: 140px; pointer-events: auto; image-rendering: pixelated; opacity: 0.92; }
+body.touch #btn-menu { right: calc(max(14px, env(safe-area-inset-right)) + 150px); top: 54px; }
+body.touch #btn-bag { right: calc(max(14px, env(safe-area-inset-right)) + 202px); top: 54px; }
+#bigmap { position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.75); }
+#bigmap.hidden { display: none; }
+#bigmap canvas { border: 2px solid #4a3e30; image-rendering: pixelated; }
+.bm-hint { color: #8a7e68; font-size: 13px; margin-top: 6px; letter-spacing: 2px; }

@@ -92,7 +92,7 @@ export class AdminMenu {
         <div class="adm-btns"><select id="adm-item">${itemOpts}</select><button class="focusable" data-cmd="spawnitem">Give</button></div>
         <div class="adm-btns"><select id="adm-rarity"><option value="">(none)</option><option>normal</option><option>special</option><option>rare</option><option>legendary</option></select><button class="focusable" data-cmd="forcechest">Force next chest</button></div>
         <div class="small">Pity: ${pity.sinceRare} runs since Rare, ${pity.sinceLegendary} since Legendary${g.rewards && g.rewards.forceNext ? ` · next forced: ${g.rewards.forceNext}` : ''}</div>
-        <div class="adm-btns"><button class="focusable" data-cmd="resetpity">Reset pity</button><button class="focusable" data-cmd="pity49">Pity to 49/299</button></div>
+        <div class="adm-btns"><button class="focusable" data-cmd="resetpity">Reset pity</button><button class="focusable" data-cmd="pityrare">Rare pity due</button><button class="focusable" data-cmd="pitylegend">Legendary pity due</button></div>
       </section>
       <section><h4>World</h4>
         <div class="adm-btns adm-wrap">${tp}</div>
@@ -129,7 +129,8 @@ export class AdminMenu {
       case 'spawnitem': { const id = document.getElementById('adm-item').value; st.addItem(id, 1); this.toast('Gave ' + ITEMS[id].name); break; }
       case 'forcechest': if (g.rewards) g.rewards.forceNext = document.getElementById('adm-rarity').value || null; this.toast('Next chest: ' + (g.rewards?.forceNext || 'normal roll')); break;
       case 'resetpity': st.pity = { sinceRare: 0, sinceLegendary: 0 }; this.toast('Pity reset'); break;
-      case 'pity49': st.pity = { sinceRare: 49, sinceLegendary: 299 }; this.toast('Pity 49 / 299'); break;
+      case 'pityrare': st.pity = { sinceRare: 50, sinceLegendary: st.pity?.sinceLegendary || 0 }; this.toast('Next chest: guaranteed Rare (pity)'); break;
+      case 'pitylegend': st.pity = { sinceRare: st.pity?.sinceRare || 0, sinceLegendary: 300 }; this.toast('Next chest: guaranteed Legendary (pity)'); break;
       case 'tp': {
         const [, dest, lvl] = cmd.split(':');
         g.closeAdmin();

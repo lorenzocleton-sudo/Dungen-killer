@@ -235,7 +235,8 @@ export class Input {
     if (edge(8)) this.trigger('inventory');
     if (edge(3)) this.trigger('interact');
     if (edge(4)) this.trigger('flask');
-    if (edge(10)) this.trigger('sprint_toggle');   // L3 click toggles sprint
+    if (edge(10)) this.trigger('sprint_toggle');
+    if (edge(11)) this.trigger('map');               // R3 = map   // L3 click toggles sprint
     if (edge(6)) this.trigger('tab_prev');
     if (edge(5) || edge(7)) this.trigger('tab_next');
     if (edge(1)) { this.trigger('nav_back'); this.trigger('cancel'); this.trigger('roll'); }

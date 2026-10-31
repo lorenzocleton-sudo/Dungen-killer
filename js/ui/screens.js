@@ -1,7 +1,7 @@
 // Full-screen panels: INVENTORY (own button), SHOP (Ashen Market) and
 // TRAINER (Hall of Paths, the only place skills can be learned).
 // All rendered as HTML; mouse/touch click, gamepad/arrow keys via SpatialNav.
-import { ITEMS, SLOTS, SLOT_NAMES, SHOP_STOCK, sellPrice, statLine } from '../systems/items.js';
+import { ITEMS, SLOTS, SLOT_NAMES, SHOP_STOCK, sellPrice, statLine, RARITY } from '../systems/items.js';
 import { SKILLS, SKILL_MAP, BRANCHES, rankOf, learnBlocker, isOpen, xpForLevel, TREE_W, TREE_H } from '../systems/skills.js';
 import { RANKS } from '../systems/renown.js';
 import { statRows } from '../systems/stats.js';
@@ -169,7 +169,7 @@ export class Screens {
   itemCell(it, opts = {}) {
     const def = ITEMS[it.id];
     const eq = Object.values(this.game.state.equipped).includes(it.uid);
-    return `<button class="cell focusable ${this.sel === it.uid ? 'sel' : ''} ${it.run ? 'runitem' : ''} ${eq ? 'eq' : ''}"
+    return `<button class="cell focusable ${this.sel === it.uid ? 'sel' : ''} ${it.run ? 'runitem' : ''} ${eq ? 'eq' : ''}" style="${def.rarity ? `box-shadow: inset 0 0 0 2px ${RARITY[def.rarity].color}` : ''}"
       data-act="${opts.act || 'sel'}" data-uid="${it.uid}" data-key="i${it.uid}" title="${esc(def.name)}">
       <span class="glyph" style="color:${def.icon[1]}">${def.icon[0]}</span>
       ${it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ''}${eq ? '<span class="eqm">E</span>' : ''}</button>`;
@@ -211,9 +211,9 @@ export class Screens {
       if (def.kind === 'consumable') btns.push(`<button class="focusable" data-act="use" data-key="use">Drink</button>`);
     }
     return `<div class="detail">
-      <div class="d-name"><span style="color:${def.icon[1]}">${def.icon[0]}</span> ${esc(def.name)} ${f.item.qty > 1 ? '×' + f.item.qty : ''}
+      <div class="d-name" style="${def.rarity ? `color:${RARITY[def.rarity].color}` : ''}"><span style="color:${def.icon[1]}">${def.icon[0]}</span> ${esc(def.name)} ${f.item.qty > 1 ? '×' + f.item.qty : ''}
         ${f.run ? '<span class="run">(unsecured)</span>' : ''}${eqSlot ? ' <span class="eqtag">equipped</span>' : ''}</div>
-      <div class="d-kind">${def.kind === 'gear' ? SLOT_NAMES[def.slot] : def.kind} · worth ${sellPrice(f.item.id)} ashes</div>
+      <div class="d-kind">${def.rarity ? `<span style="color:${RARITY[def.rarity].color}">${RARITY[def.rarity].name}</span> · ` : ''}${def.kind === 'gear' ? SLOT_NAMES[def.slot] : def.kind[0].toUpperCase() + def.kind.slice(1)} · worth ${sellPrice(f.item.id)} ashes</div>
       ${def.stats && Object.keys(def.stats).length ? `<div class="d-stats">${statLine(def.stats)}</div>` : ''}
       <div class="d-desc">${esc(def.desc || '')}</div>
       <div class="d-btns">${btns.join('')}</div></div>`;

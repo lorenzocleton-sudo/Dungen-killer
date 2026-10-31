@@ -412,7 +412,7 @@ export function interactable(area, pos, radius, label, onUse, live = false) {
 }
 
 /** Iron-bound chest. Opens once, then rolls loot via onOpen(). */
-export function chest(area, x, y, z, yaw, onOpen) {
+export function chest(area, x, y, z, yaw, onOpen, opts = {}) {
   const g = new THREE.Group();
   g.position.set(x, y, z); g.rotation.y = yaw;
   const wood = litMaterial('woodDark'), iron = litMaterial('ironDark');
@@ -425,6 +425,12 @@ export function chest(area, x, y, z, yaw, onOpen) {
   const lock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.06), iron); lock.position.set(0, 0.5, 0.37); g.add(lock);
   area.scene.add(g);
   area.collision.addCentered(x, y + 0.4, z, 1.1, 0.8, 1.1, 'prop');
+  area.mapMarkers.push({ x, z, type: 'chest' });
+  if (opts.glow) {
+    const gl = new THREE.Sprite(spriteMaterial('glow', opts.glow)); gl.scale.set(3.2, 2.4, 1); gl.material.opacity = 0.55; gl.position.y = 0.8; g.add(gl);
+    area.lights.add(new THREE.Vector3(x, y + 1.2, z), { color: opts.glow, intensity: 6, range: 7, flicker: 0.2 });
+    area.addEmitter(new THREE.Vector3(x, y + 0.5, z), 6, (a, p) => a.glow.emit(p.x + (Math.random() - 0.5) * 0.8, p.y, p.z + (Math.random() - 0.5) * 0.8, 0, 0.8, 0, 1.2, new THREE.Color(opts.glow).toArray(), 0.04));
+  }
   let open = 0;
   const it = interactable(area, new THREE.Vector3(x, y, z), 2.0, 'Open chest', () => {
     it.enabled = false; open = 0.001;

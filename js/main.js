@@ -15,6 +15,8 @@ import { Town } from './world/town.js';
 import { MainDungeon, RandomDungeon } from './world/dungeon.js';
 import { BIOME_IDS } from './world/biomes.js';
 import { Projectiles } from './entities/projectiles.js';
+import { Rewards } from './systems/rewards.js';
+import { Minimap } from './ui/minimap.js';
 import { Screens } from './ui/screens.js';
 import { AdminMenu, DEBUG_DEFAULTS } from './ui/admin.js';
 import { addXp } from './systems/skills.js';
@@ -67,6 +69,8 @@ class Game {
     this.combat = new CombatSystem(this);
     this.loot = new LootSystem(this);
     this.projectiles = new Projectiles(this);
+    this.rewards = new Rewards(this);
+    this.minimap = new Minimap(this);
     this.biomeIds = BIOME_IDS;
     this.dungeonLevel = 1;
     this.systems = [this.enemies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
@@ -81,6 +85,8 @@ class Game {
       if (!enemy.def.boss) return;
       this.state.world.bosses[enemy.type] = (this.state.world.bosses[enemy.type] || 0) + 1;
       this.loot.roll('boss', enemy.pos, 4);
+      // bosses always drop a Special, sometimes a Rare
+      this.loot.spawn(this.rewards.randomItem(Math.random() < 0.3 ? 'rare' : 'special'), enemy.pos, 5);
       if (this.area.onBossDefeated) this.area.onBossDefeated(enemy);
       this.state.save();
     });
@@ -177,6 +183,15 @@ class Game {
     this.input.flush();
     this.input.requestLock();
     this.state.save();
+  }
+
+  toggleMap() {
+    if (!this.started || this.player.dead) return;
+    const on = !this.minimap.open;
+    if (on && (this.menu.open || this.screens.open || this.admin.open)) return;
+    this.minimap.showBig(on);
+    this.input.enabled = !on;
+    if (on) { this.input.resetTouch(); this.input.releaseLock(); } else { this.input.flush(); this.input.requestLock(); }
   }
 
   openAdmin() {
@@ -374,6 +389,13 @@ class Game {
       return; // paused
     }
     if (input.consume('admin')) { this.openAdmin(); input.flush(); return; }
+    if (this.minimap.open) {
+      if (input.consume('map') || input.consume('cancel') || input.consume('menu')) this.toggleMap();
+      this.minimap.update(dt);
+      input.flush();
+      return; // paused while the full map is open
+    }
+    if (input.consume('map')) { this.toggleMap(); input.flush(); return; }
     this.admin.update(dt);
     if (this.screens.open) {
       this.screens.handleInput(input);
@@ -441,6 +463,7 @@ class Game {
     let boss = null;
     for (const e of this.enemies.list) if (e.showsBar && (!boss || e.def.boss)) boss = e;
     this.hud.setBoss(boss);
+    this.minimap.update(dt);
     this.hud.setStamina(this.player.stamina, this.player.maxStamina, this.player.exhausted);
     this.hud.setClock(this.clock, area.hostile, this.townPhase());
     const st = this.state;

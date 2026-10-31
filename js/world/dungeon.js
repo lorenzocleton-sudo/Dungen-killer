@@ -140,6 +140,7 @@ export class Dungeon extends Area {
 
   build() {
     this.parse();
+    this.cellSize = CELL;
     const A = this, g = this.grid;
     const B = this.biome;
     this.scene.fog = new THREE.Fog(B.fog, 1, B.fogFar);
@@ -372,7 +373,12 @@ export class Dungeon extends Area {
     if (this.layout.chest) {
       const [c, r] = this.layout.chest;
       const [x, z, y] = cc(c, r);
-      chest(A, x, y, z - CELL / 2 + 0.7, 0, () => this.game.loot.roll('chest', new THREE.Vector3(x, y, z), 3));
+      if (this.rewardChest) {
+        // end-of-run reward: rarity decided now (glow), pity updated when opened
+        const rarity = this.game.rewards.roll();
+        this.chestRarity = rarity;
+        chest(A, x, y, z - CELL / 2 + 0.7, 0, () => this.game.rewards.open(rarity, new THREE.Vector3(x, y, z)), { glow: this.game.rewards.color(rarity) });
+      } else chest(A, x, y, z - CELL / 2 + 0.7, 0, () => this.game.loot.roll('chest', new THREE.Vector3(x, y, z), 3));
     }
   }
 
@@ -515,6 +521,7 @@ export class RandomDungeon extends Dungeon {
     this.biomeId = biomeId;
     this.transient = true;
     this.returnSpawn = 'portal_depths';
+    this.rewardChest = true;
     this.layout = generateDungeon((Math.random() * 1e9) | 0, { enemies: this.biome.enemies });
     this.cells = this.layout.cells;
     this.braziers = this.layout.braziers;

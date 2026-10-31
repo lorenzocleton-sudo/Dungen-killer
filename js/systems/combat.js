@@ -104,6 +104,8 @@ export class CombatSystem {
       this._damageEnemy(e, dmg, crit ? 'crit' : '', 1 + (s.staggerPct || 0) / 100);
       if (s.bleedDps && !e.dead) e.dot('bleed', s.bleedDps, 4);
       if (s.chillPct && !e.dead) e.chill(Math.min(70, s.chillPct), 2.5);
+      if (s.chainHit) this.chain(e, Math.round(dmg * 0.5), s.chainHit);
+      if (s.quakeChance && Math.random() * 100 < s.quakeChance) this.quake(e);
       if (s.lifesteal) p.heal(dmg * s.lifesteal / 100);
       if (s.burnDps && !e.dead) e.ignite(s.burnDps * (1 + s.burnPct / 100), 3 * (1 + s.burnPct / 100));
       if (crit && s.emberBurst) this.emberBurst(e, s.emberBurst);
@@ -118,6 +120,25 @@ export class CombatSystem {
       p.shake = Math.max(p.shake, 0.35);
       if (s.pyre && ++this.hitCounter % 5 === 0) this.pyreNova(s.pyre);
     }
+  }
+
+  /** Kingsbane: lightning arcs from the target to nearby enemies. */
+  chain(from, dmg, n) {
+    const g = this.game;
+    const near = g.enemies.list.filter((e) => !e.dead && e !== from && e.pos.distanceTo(from.pos) < 6).sort((a, b) => a.pos.distanceTo(from.pos) - b.pos.distanceTo(from.pos)).slice(0, n);
+    for (const e of near) {
+      const a = from.headPos(), b = e.headPos();
+      for (let i = 0; i <= 8; i++) { const t = i / 8; g.area.glow.emit(a.x + (b.x - a.x) * t + (Math.random() - 0.5) * 0.3, a.y + (b.y - a.y) * t + (Math.random() - 0.5) * 0.3, a.z + (b.z - a.z) * t, 0, 0, 0, 0.25, [0.6, 0.8, 1], 0.06); }
+      this._damageEnemy(e, dmg, 'crit', 0.3);
+    }
+  }
+
+  /** Fists of the Colossus: shockwave around the target. */
+  quake(center) {
+    const g = this.game;
+    g.area.dust.burst(center.pos.x, center.pos.y + 0.2, center.pos.z, 30, 4, 0.8, [0.35, 0.3, 0.25], 0.12, -3, 0.5);
+    g.player.shake = Math.max(g.player.shake, 0.5);
+    for (const e of g.enemies.list) if (!e.dead && e.pos.distanceTo(center.pos) < 3) { this._damageEnemy(e, 45, 'crit', 2); e.state = e.brain ? e.state : 'stagger'; e.timer = 0.5; }
   }
 
   emberBurst(center, dmg) {
@@ -150,6 +171,10 @@ export class CombatSystem {
     g.state.stats.kills++;
     if (s.killHeal) g.player.heal(s.killHeal);
     if (s.killStamina) g.player.stamina = Math.min(g.player.maxStamina, g.player.stamina + s.killStamina);
+    if (s.killExplode) {
+      g.area.glow.burst(enemy.pos.x, enemy.pos.y + 0.8, enemy.pos.z, 40, 5, 0.7, [1, 0.45, 0.12], 0.08, -2, 1);
+      for (const e of g.enemies.list) if (!e.dead && e !== enemy && e.pos.distanceTo(enemy.pos) < 3.5) { this._damageEnemy(e, s.killExplode, 'burn', 1); e.ignite(5, 3); }
+    }
     if (s.deathDance) this.nextCrit = true;
     g.hud.feed(`${d.name} falls  +${ashes} ashes`);
     g.giveXp(Math.round(d.xp * (enemy.level ? 1 + (enemy.level - 1) * 0.25 : 1)));
@@ -177,6 +202,12 @@ export class CombatSystem {
     if (g.input.consume('flask')) this.drinkFlask();
     if (this.flaskCooldown > 0) this.flaskCooldown -= dt;
     this.weapon.update(dt, p);
+    // Shroud of the Nameless: frost nova when a roll starts
+    if (p.roll && !p.roll.nova && this.stats.rollNova) {
+      p.roll.nova = true;
+      for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2; g.area.glow.emit(p.pos.x, p.pos.y + 0.3, p.pos.z, Math.cos(a) * 8, 0.3, Math.sin(a) * 8, 0.4, [0.6, 0.85, 1], 0.08, 0, 1); }
+      for (const e of g.enemies.list) if (!e.dead && e.pos.distanceTo(p.pos) < 4) { this._damageEnemy(e, this.stats.rollNova, 'burn', 0.5); e.chill(50, 3); }
+    }
     // Phantom Blade: rolling through enemies cuts them
     if (p.roll) {
       p.lastRollAt = performance.now();

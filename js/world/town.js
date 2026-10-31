@@ -44,6 +44,7 @@ export class Town extends Area {
     this.scene.fog = new THREE.Fog(0x5e5d58, 6, 62);
     this.sky = new Sky(this.scene);
     this.interiors = [];
+    this.mapBounds = { x0: -HALF - 3, z0: -HALF - 3, x1: HALF + 3, z1: HALF + 3 };
     const rnd = (() => { let s = 99; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; })();
 
     // ---------------------------------------------------------- ground
