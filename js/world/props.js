@@ -129,7 +129,11 @@ export function portal(area, o) {
     mesh(area, 'stoneDark', new THREE.ConeGeometry(0.3, 1.0, 4), trs(px, y + 5.6, pz, [0, rot + Math.PI / 4, sx * -0.15]), { shade: null });
   }
 
-  const pal = o.color === 'blue'
+  const pal = o.color === 'purple'
+    ? { tex: 'portalBlue', light: 0xb070ff, mote: [0.75, 0.45, 1.0], tint: 0xe0b0ff }
+    : o.color === 'gold'
+      ? { tex: 'portalRed', light: 0xffc060, mote: [1.0, 0.8, 0.4], tint: 0xffe8a0 }
+      : o.color === 'blue'
     ? { tex: 'portalBlue', light: 0x6ea8ff, mote: [0.45, 0.65, 1.0], tint: 0xbfd8ff }
     : o.color === 'red'
       ? { tex: 'portalRed', light: 0xff5a3a, mote: [1.0, 0.4, 0.25], tint: 0xffc8b8 }
@@ -717,6 +721,58 @@ export function remains(area, x, y, z, tags) {
     it.enabled = false;
     area.game.journal.readFor(...tags);
     area.game.state.addCurrency(3 + Math.floor(Math.random() * 8));
+  });
+  return it;
+}
+
+/**
+ * Spike trap: a floor plate that glows red, then spikes shoot up. Hurts
+ * whoever is standing on it at that moment (jumping over it is safe).
+ */
+export function spikeTrap(area, x, y, z, o = {}) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 2.0), litMaterial('ironDark', { unique: true }));
+  plate.position.y = 0.03; g.add(plate);
+  const spikes = new THREE.Group(); g.add(spikes);
+  const sm = litMaterial('iron');
+  for (let i = 0; i < 16; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.6, 4), sm); c.position.set(-0.75 + (i % 4) * 0.5, 0.3, -0.75 + Math.floor(i / 4) * 0.5); spikes.add(c); }
+  spikes.position.y = -0.62;
+  area.scene.add(g);
+  area.mapMarkers.push({ x, z, type: 'trap' });
+  const period = o.period || 3.2, phase = o.phase ?? Math.random() * period;
+  let hitThisCycle = false;
+  area.animated.push({
+    update(dt, t, player) {
+      const c = (t + phase) % period;
+      const warn = c > period - 1.0 && c < period - 0.45;
+      const up = c >= period - 0.45;
+      plate.material.emissive.setRGB(warn ? 0.5 + Math.sin(t * 30) * 0.3 : 0, 0, 0);
+      const target = up ? 0 : -0.62;
+      spikes.position.y += (target - spikes.position.y) * Math.min(1, dt * (up ? 30 : 6));
+      if (!up) { hitThisCycle = false; return; }
+      if (hitThisCycle || player.dead) return;
+      const onIt = Math.abs(player.pos.x - x) < 1.1 && Math.abs(player.pos.z - z) < 1.1 && player.pos.y - y < 0.35 && player.pos.y - y > -0.5;
+      if (onIt) { hitThisCycle = true; player.damage(Math.round((o.damage || 18)), new THREE.Vector3(x, y, z), 'trap'); }
+    },
+  });
+  return g;
+}
+
+/** Healing shrine: an ember in a stone bowl. Restores you fully, once. */
+export function healingShrine(area, x, y, z) {
+  box(area, 'stoneDark', x, y + 0.5, z, 0.9, 1.0, 0.9, { worldUV: 1 });
+  box(area, 'stone', x, y + 1.05, z, 1.1, 0.12, 1.1, { worldUV: 1, collide: false, shade: null });
+  const ember = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), basicMaterial(0xffa040));
+  ember.position.set(x, y + 1.35, z); area.scene.add(ember);
+  const light = area.lights.add(new THREE.Vector3(x, y + 1.6, z), { color: 0xffa050, intensity: 6, range: 7, flicker: 0.4 });
+  area.mapMarkers.push({ x, z, type: 'shrine' });
+  area.animated.push({ update(dt, t) { ember.rotation.y = t; ember.position.y = y + 1.35 + Math.sin(t * 2) * 0.06; } });
+  const it = interactable(area, new THREE.Vector3(x, y, z), 2.0, 'Warm yourself at the shrine (heal)', () => {
+    const p = area.game.player;
+    p.hp = p.maxHp; p.stamina = p.maxStamina; p.mana = p.maxMana; p.dot = null;
+    area.glow.burst(x, y + 1.3, z, 30, 2, 1, [1, 0.6, 0.25], 0.05, 1, 1);
+    area.game.hud.feed('The ember warms you. It gutters out.', '#e0a050');
+    it.enabled = false; light.enabled = false; ember.visible = false;
   });
   return it;
 }

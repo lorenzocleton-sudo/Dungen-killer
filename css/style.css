@@ -339,3 +339,14 @@ button.admin { color: #80c0ff; border-color: #2a4060; background: #101824; }
 .note { border: 1px solid #2e261e; background: #120e0b; padding: 8px 12px; }
 .note-title { color: #c8b0e0; font-variant: small-caps; letter-spacing: 1px; }
 .note-text { color: #b8ad98; font-style: italic; font-size: 14px; margin-top: 3px; }
+
+/* ---------------------------------------------------------------- levels / pit */
+.levels { display: flex; flex-direction: column; gap: 4px; max-height: 64vh; overflow: auto; }
+.lv-row { display: grid; grid-template-columns: 24px 1fr auto auto auto; gap: 8px; align-items: center; padding: 4px 6px; border-bottom: 1px solid rgba(120,100,70,0.25); }
+.lv-row .lv-dot { font-size: 18px; text-align: center; }
+.lv-row .lv-name small { display: block; color: #9a8a70; font-size: 11px; }
+.lv-row .lv-rec { color: #b8a888; font-size: 12px; }
+.lv-row button { padding: 5px 12px; }
+.lv-row button.cq { border-color: #c09040; color: #f0c070; }
+.lv-legend { font-size: 12px; color: #a89878; margin: 4px 0; }
+.crown { color: #f0c040; margin-right: 6px; }

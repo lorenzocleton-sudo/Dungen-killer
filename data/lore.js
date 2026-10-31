@@ -23,6 +23,13 @@ export const AREA_LORE = {
   swamp: { name: 'The Drowned Quarter', line: 'the flooded lower city. The bells still ring under the water' },
   frozen: { name: 'The Rimewastes', line: 'northern holdfasts, frozen in the ash-winter. The soldiers are still at their posts' },
   mine: { name: 'The Kilnworks', line: 'where the fire was woken. It still burns. The Choir still sings' },
+  rootbound: { name: 'The Rootbound Ossuary', line: 'roots found the dead before the priests did, and kept them' },
+  cathedral: { name: 'The Cinder Cathedral', line: 'the Choir\u2019s mother-church. The candles were never lit; they were always burning' },
+  kennels: { name: 'The Hound Pits', line: 'where the King\u2019s beasts were bred for a war that came from below' },
+  sunken: { name: 'The Sunken Palace', line: 'the old seat of the Line of Vael, under a sea that should not be this deep' },
+  court: { name: 'The Hollow Court', line: 'the throne beneath the throne. Someone has been sitting in it for four hundred years' },
+  abyss: { name: 'The Abyss', line: 'below the root of the fire there is no time at all. It will never heal' },
+  pit: { name: 'The Proving Pit', line: 'the Oathguard trained here once. The sand remembers every fall' },
 };
 
 /** Boss title cards (on encounter) and last words (on death). */
@@ -31,6 +38,7 @@ export const BOSS_LORE = {
   brood_mother: { title: 'The Brood Mother', sub: 'grown vast on the deep fire\'s warmth, fed the dead until there were no more', death: 'Silence. One by one, her eggs go dark.' },
   ashen_abbot: { title: 'Merrow, the Ashen Abbot', sub: 'who lit the Sundering, and believes one more song will finish it', death: '"The song... was nearly done."' },
   kings_hound: { title: 'The Hollow King\'s Hound', sub: 'a king\'s crest burned into its hide, older than the King\'s, and cracked', death: 'A long howl. Far below, something answers.' },
+  hollow_king: { title: 'The Hollow King', sub: 'Aldric\u2019s true form \u2014 what sat the throne while the Hearth held the hour', death: '"Let it... run, then. Let it all run."' },
   drowned_lord: { title: 'Prince Edric Vael, the Drowned Lord', sub: 'the king\'s brother, left behind when the flood gates closed', death: '"Tell my brother... the water was cold."' },
 };
 

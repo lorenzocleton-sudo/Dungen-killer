@@ -8,8 +8,30 @@ import { events } from '../engine/events.js';
 import { BossBrain } from './bosses.js';
 import { Telegraph } from './projectiles.js';
 import { NavGrid } from '../engine/nav.js';
+import { spriteMaterial } from '../engine/materials.js';
 
 const MASS = [1, 3, 8, 20];
+
+/** Fixed difficulty per dungeon level (never scales to the player). */
+export function levelHpMul(L) {
+  if (L > 30) return levelHpMul(30) * Math.pow(1.07, L - 30);
+  return 1 + (L - 1) * 0.3 + Math.max(0, L - 10) ** 2 * 0.006;
+}
+export function levelDmgMul(L) {
+  if (L > 30) return levelDmgMul(30) * Math.pow(1.05, L - 30);
+  return 1 + (L - 1) * 0.16 + Math.max(0, L - 15) * 0.04;
+}
+
+/** Elite affixes for guardians, Conquest elites and Pit waves. */
+export const AFFIXES = {
+  burning: { name: 'Burning', color: 0xff6a20 },
+  frozen: { name: 'Frozen', color: 0x90d8ff },
+  vampiric: { name: 'Vampiric', color: 0xd02030 },
+  shielded: { name: 'Shielded', color: 0xd8e0ff },
+  splitting: { name: 'Splitting', color: 0x90e060 },
+  hasted: { name: 'Hasted', color: 0xffe060 },
+};
+export const AFFIX_IDS = Object.keys(AFFIXES);
 const _box = new THREE.Box3(), _bv = new THREE.Vector3();
 
 /** Body bounds of a model (weapons excluded), in the model's scaled space. */
@@ -43,6 +65,7 @@ export class Enemy {
     this.model = this.def.build();
     this.group = this.model.root;
     this.elite = !!opts.elite;
+    this.affixes = (opts.affixes || []).filter((a) => AFFIXES[a]);
     const base = this.group.scale.x || 1;
     this.sizeMul = base * (this.elite ? 1.45 : 1);
     this.group.scale.setScalar(this.sizeMul);
@@ -64,7 +87,17 @@ export class Enemy {
     const lv = opts.level || 1;
     this.agility = opts.agility ?? (lv >= 26 ? 3 : lv >= 16 ? 2 : lv >= 6 ? 1 : 0);
     if (this.sizeClass >= 2) this.agility = Math.min(this.agility, 1);    // large enemies never jump
-    this.spd = this.def.speed * [1, 1.15, 1.3, 1.45][this.agility] * (opts.speedMul || 1);
+    this.spd = this.def.speed * [1, 1.15, 1.3, 1.45][this.agility] * (opts.speedMul || 1) * (this.affixes.includes('hasted') ? 1.5 : 1);
+    // elite glow + per-enemy materials for see-through shades
+    if (this.affixes.length) {
+      const col = AFFIXES[this.affixes[0]].color;
+      const gl = new THREE.Sprite(spriteMaterial('glow', col)); gl.scale.set(2.6, 3, 1); gl.material.opacity = 0.35; gl.position.y = 1;
+      this.group.add(gl); this.affixGlow = gl;
+    }
+    if (this.def.invisible) {
+      this._fade = [];
+      this.group.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; this._fade.push(o.material); } });
+    }
     this.slamCd = 2 + Math.random() * 3;
     this.leapCd = 2 + Math.random() * 3;
     this.dashCd = 3 + Math.random() * 3;
@@ -73,11 +106,18 @@ export class Enemy {
     this.vel = new THREE.Vector3();
     this.yaw = Math.random() * Math.PI * 2;
     this.level = opts.level || 1;
-    this.hpMul = (opts.hpMul || 1) * (this.elite ? 4 : 1) * (1 + (this.level - 1) * 0.3);
-    this.dmgMul = (opts.dmgMul || 1) * (this.elite ? 1.5 : 1) * (1 + (this.level - 1) * 0.18);
+    this.hpMul = (opts.hpMul || 1) * (this.elite ? 4 : 1) * levelHpMul(this.level);
+    this.dmgMul = (opts.dmgMul || 1) * (this.elite ? 1.5 : 1) * levelDmgMul(this.level);
     this.hp = Math.round(this.def.hp * this.hpMul);
     this.maxHp = this.hp;
-    this.name = this.elite ? `Elder ${this.def.name}` : this.def.name;
+    const pre = this.affixes.map((a) => AFFIXES[a].name).join(' ');
+    this.name = (pre ? pre + ' ' : '') + (this.def.boss ? '' : opts.guardian ? 'Guardian ' : this.elite ? 'Elder ' : '') + this.def.name;
+    this.guardian = !!opts.guardian;
+    if (this.affixes.includes('shielded')) { this.shield = this.shieldMax = Math.round(this.maxHp * 0.4); this.shieldT = 0; }
+    this.windMul = this.affixes.includes('hasted') ? 0.65 : 1;
+    if (this.def.mimic) this.disguised = true;
+    if (this.def.flee) this.fleeT = 0;
+    this.tags = opts.tags || {};
     this.state = 'idle';
     this.timer = Math.random();
     this.anim = Math.random() * 10;
@@ -107,6 +147,8 @@ export class Enemy {
 
   takeHit(amount, fromPos, knock = 1) {
     if (this.dead) return;
+    if (this.disguised) this.reveal();
+    if (this.shield > 0) { const a = Math.min(this.shield, amount); this.shield -= a; amount -= a; this.shieldT = 0; if (amount <= 0) { this.flash = 0.1; return; } }
     this.hp -= amount;
     this.flash = 0.14;
     this.poiseDmg += amount;
@@ -163,6 +205,13 @@ export class Enemy {
     }
   }
 
+  /** Leave without dying (no loot): the Ash Hoarder escaping. */
+  vanish() {
+    this.dead = true; this.state = 'dead'; this.timer = 10; this.remove = true; this.escaped = true;
+    if (this.area.glow) this.area.glow.burst(this.pos.x, this.pos.y + 0.6, this.pos.z, 30, 3, 0.8, [1, 0.8, 0.4], 0.06, 0, 1);
+    events.emit('enemyEscaped', { enemy: this });
+  }
+
   die() {
     if (this.dead) return;
     this.dead = true;
@@ -170,6 +219,7 @@ export class Enemy {
     this.timer = 0;
     if (this.brain) this.brain.clear();
     this._clearTele();
+    if (this.affixGlow) this.affixGlow.visible = false;
     events.emit('enemyKilled', { enemy: this, type: this.type, pos: this.pos.clone() });
   }
 
@@ -191,6 +241,12 @@ export class Enemy {
     const dealt = player.damage(Math.round(base * this.dmgMul * mul * (0.85 + Math.random() * 0.3)), this.pos, this);
     if (dealt && this.def.onHit && this.def.onHit.slow) player.slowT = Math.max(player.slowT || 0, this.def.onHit.slow);
     if (dealt && this.def.onHit && this.def.onHit.poison) player.addDot(this.def.onHit.poison, 3, 'poison');
+    if (dealt && this.def.onHit && this.def.onHit.burn) player.addDot(this.def.onHit.burn, 3, 'burn');
+    if (dealt && this.affixes.length) {
+      if (this.affixes.includes('burning')) player.addDot(4 + this.level * 0.6, 3, 'burn');
+      if (this.affixes.includes('frozen')) player.slowT = Math.max(player.slowT || 0, 2);
+      if (this.affixes.includes('vampiric')) this.hp = Math.min(this.maxHp, this.hp + dealt * 2);
+    }
     return dealt;
   }
 
@@ -209,6 +265,33 @@ export class Enemy {
     const faceYaw = Math.atan2(dx, dz);
     let moveSpeed = 0, targetYaw = this.yaw;
     this.timer -= dt;
+    // ---- passive effects: auras, shields, invisibility
+    const aura = d.aura || (this.affixes.includes('burning') ? { kind: 'burn', r: 2.2, dps: 3 } : null);
+    if (aura && dist < aura.r + this.radius && Math.abs(dy) < 1.6 && !player.dead) player.addDot(aura.dps * (1 + this.level * 0.08), 0.6, aura.kind);
+    if (this.shieldMax) { this.shieldT += dt; if (this.shieldT > 6) this.shield = this.shieldMax; }
+    if (this._fade) {
+      const show = dist < 3.2 || this.state === 'windup' || this.state === 'strike' || this.flash > 0 || this.revealT > 0;
+      if (this.revealT > 0) this.revealT -= dt;
+      const a = this._fadeA = (this._fadeA ?? 0.1) + ((show ? 0.95 : 0.06) - (this._fadeA ?? 0.1)) * Math.min(1, dt * 6);
+      for (const m of this._fade) m.opacity = a;
+    }
+    if (this.disguised) {
+      // a chest, until you come close (or hit it)
+      if (dist < d.notice && Math.abs(dy) < 1.5 && !player.dead) this.reveal();
+      this._animate(dt, 0);
+      return;
+    }
+    if (d.flee && this.state !== 'idle' && this.state !== 'alert') {
+      // the Ash Hoarder never fights: it runs, and vanishes if it gets away
+      this.fleeT += dt;
+      const away = { x: this.pos.x - dx * 3, z: this.pos.z - dz * 3 };
+      const wp = this.navTo(dt, away.x, away.z, this.pos.y);
+      this.yaw = wp ? Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z) : faceYaw + Math.PI;
+      if (this.fleeT > 22 || (dist > 30 && this.fleeT > 6)) { this.vanish(); return; }
+      this.move(dt, this.spd, ctx);
+      this._animate(dt, this.spd);
+      return;
+    }
 
     if (this.state === 'idle' || this.state === 'alert') {
       if (this.state === 'idle') {
@@ -253,7 +336,7 @@ export class Enemy {
             else if (this.rangedCd <= 0) { this.state = 'windup'; this.timer = this.model.archer ? 1.1 : (d.ranged.windup || d.windup); this.shooting = true; this.drawT = 0; }
             break;
           }
-          if (dist < d.range * this.sizeMul + this.radius * 0.3 && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; this.slamming = false; this._startTele(); break; }
+          if (dist < d.range * this.sizeMul + this.radius * 0.3 && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup * this.windMul; this.shooting = false; this.slamming = false; this._startTele(); break; }
           // heavy bodies slam the ground: a shockwave ring the player must jump over
           this.slamCd -= dt;
           if (this.sizeClass >= 2 && this.slamCd <= 0 && dist < 7 && canSee) { this.state = 'windup'; this.timer = 0.9; this.shooting = false; this.slamming = true; this.slamCd = 6 + Math.random() * 4; break; }
@@ -405,6 +488,15 @@ export class Enemy {
     return P[this.pathI];
   }
 
+  /** Mimic: the chest wakes up. */
+  reveal() {
+    if (!this.disguised) return;
+    this.disguised = false;
+    this.state = 'alert'; this.timer = 0.3;
+    events.emit('enemyAlerted', { enemy: this });
+    if (this.area.dust) this.area.dust.burst(this.pos.x, this.pos.y + 0.5, this.pos.z, 16, 2, 0.6, [0.3, 0.25, 0.2], 0.1, -3, 1);
+  }
+
   /** Leap at the player (agile, small/medium melee enemies only). */
   _pounce(player, dist) {
     const yaw = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
@@ -468,6 +560,12 @@ export class Enemy {
     } else { this.pos.y += (g - this.pos.y) * Math.min(1, dt * 20); this.vy = 0; }
     this.group.position.copy(this.pos);
     if (this.def.float) this.group.position.y += 0.35 + Math.sin(this.anim * 2) * 0.12;
+    if (this.def.flying) {
+      // gargoyles circle overhead and swoop down to strike
+      const low = this.state === 'windup' || this.state === 'strike' || this.state === 'recover' || this.state === 'stagger';
+      this.hover = (this.hover ?? this.def.flying) + ((low ? 0.2 : this.def.flying) - (this.hover ?? this.def.flying)) * Math.min(1, dt * 4);
+      this.group.position.y += this.hover + Math.sin(this.anim * 3) * 0.15;
+    }
     this.group.rotation.y = this.yaw;
   }
 
@@ -507,6 +605,13 @@ export class Enemy {
       if (winding) { m.torso.rotation.x = -0.4 * k; m.hips.position.y = m.hipY - 0.15 * k; }
       else if (striking) { m.torso.rotation.x = 0.25; m.armL.rotation.x = m.armR.rotation.x = -1.5; }
       else m.torso.rotation.x *= 0.85;
+    } else if (m.kind === 'spider' && m.mimic) {
+      const ph = t * 14 * (0.3 + walk * 0.7);
+      for (const leg of m.legs) leg.visible = !this.disguised;
+      m.legs.forEach((leg, i) => { leg.rotation.y = leg.userData.baseY + Math.sin(ph + i * 1.3) * 0.3 * walk; });
+      m.body.position.y = this.disguised ? 0.28 : m.hipY + Math.sin(ph * 2) * 0.03 * walk;
+      m.lid.rotation.x = this.disguised ? 0 : winding ? -1.2 * k : striking ? -0.1 : -0.5 - Math.sin(t * 8) * 0.3;
+      m.teeth.visible = !this.disguised;
     } else if (m.kind === 'spider') {
       const ph = t * 14 * (0.3 + walk * 0.7);
       m.legs.forEach((leg, i) => { leg.rotation.y = leg.userData.baseY + Math.sin(ph + i * 1.3) * 0.25 * walk; leg.rotation.z = leg.userData.baseZ + Math.max(0, Math.sin(ph + i * 1.3)) * 0.2 * walk; });

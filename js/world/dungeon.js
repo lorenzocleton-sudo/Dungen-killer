@@ -10,9 +10,11 @@ import { boxGeo, trs } from '../engine/geometry.js';
 import { litMaterial } from '../engine/materials.js';
 import { box, mesh, wallTorch, brazier, portal, chest } from './props.js';
 import { generateDungeon } from './dungeonGen.js';
-import { BIOMES, BIOME_IDS, mainLevelEnemies } from './biomes.js';
-import { BOSS_BY_LEVEL } from '../entities/enemyTypes.js';
-import { gate, remains } from './props.js';
+import { BIOMES, BIOME_IDS, mainLevelEnemies, bandFor } from './biomes.js';
+import { BOSS_BY_LEVEL, STORY_LEVELS } from '../entities/enemyTypes.js';
+import { gate, remains, spikeTrap, healingShrine } from './props.js';
+import { AFFIX_IDS, levelDmgMul } from '../entities/enemy.js';
+import { ascensionMul } from '../systems/progression.js';
 
 export const CELL = 2.5;
 const LEVEL_DROP = 1.5;
@@ -469,35 +471,78 @@ export class Dungeon extends Area {
   }
 }
 
-/** Main dungeon: numbered levels, each ending in a boss arena with two gates. */
-export const MAIN_LEVELS = 5;
+/** Main dungeon: 30 numbered levels, then the endless Abyss (31+). */
+export const MAIN_LEVELS = 30;
 
+/**
+ * Each level ends in a guardian arena with two gates (Descend / Return).
+ * Story bosses guard levels 5, 10, 15, 20, 25 and 30 (the Hollow King); other
+ * levels have an elite guardian from the band's pool with affixes.
+ * Difficulty is FIXED per level. Conquest (game.conquest) is the optional hard
+ * mode: +150% HP/damage, more elites, a stronger guardian, extra traps, no
+ * healing shrines, and every enemy must die.
+ */
 export class MainDungeon extends Dungeon {
   constructor(game) {
-    const level = Math.max(1, Math.min(MAIN_LEVELS, game.dungeonLevel || 1));
-    super(game, 'dungeon', `The Catacombs \u2014 Level ${level}`);
-    this.loreKey = 'dungeon';
+    const level = Math.max(1, game.dungeonLevel || 1);
+    const abyss = level > MAIN_LEVELS;
+    const bandId = bandFor(level);
+    const B = BIOMES[bandId];
+    super(game, 'dungeon', abyss ? `The Abyss \u2014 Depth ${level}` : `${bandId === 'crypt' ? 'The Catacombs' : B.title} \u2014 Level ${level}`);
+    this.loreKey = abyss ? 'abyss' : level <= 5 ? 'dungeon' : bandId;
     this.level = level;
+    this.abyss = abyss;
+    this.biome = B;
+    this.biomeId = bandId;
     this.transient = true;
     this.returnSpawn = 'portal';
-    this.layout = generateDungeon(level * 104729 + 17, { arena: true, enemies: mainLevelEnemies(level) });
+    this.conquestMode = !!game.conquest;
+    const asc = ascensionMul(game.state);
+    const rest = game.restoration ? game.restoration.value : 0;
+    this.layout = generateDungeon(level * 104729 + 17, { arena: true, enemies: mainLevelEnemies(level), decor: B.decor });
     this.cells = this.layout.cells;
     this.braziers = this.layout.braziers;
-    this.spawnList = this.layout.spawns;
+    // the world healing thins out the first levels (never below level 26 / the Abyss)
+    let spawns = this.layout.spawns;
+    if (level <= 5 && rest >= 60 && !this.conquestMode) spawns = spawns.filter((_, i) => i % 4 !== 3);
+    this.spawnList = spawns;
     this.fixedDecor = false;
-    this.enemyOpts = { level };
-    this.bossType = BOSS_BY_LEVEL[level - 1];
+    const cq = this.conquestMode ? 2.5 : 1;
+    this.enemyOpts = { level, hpMul: cq * asc, dmgMul: cq * asc };
+    // guardian
+    const story = STORY_LEVELS[level] || (abyss && level % 10 === 0 ? BOSS_BY_LEVEL[Math.floor(Math.random() * BOSS_BY_LEVEL.length)] : null);
+    this.bossType = story;
+    if (!story) {
+      const pool = B.guardians || B.mini || ['knight', 'brute'];
+      this.guardianType = pool[(level * 7) % pool.length];
+      const n = Math.min(4, 1 + Math.floor(level / 10) + (this.conquestMode ? 1 : 0) + (abyss ? 1 : 0));
+      const ids = AFFIX_IDS.slice();
+      this.guardianAffixes = [];
+      for (let i = 0; i < n; i++) this.guardianAffixes.push(ids.splice((level * 13 + i * 5 + (game.conquest ? 3 : 0)) % ids.length, 1)[0]);
+    }
   }
 
   build() {
     super.build();
     const a = this.layout.arena, [sx, sz] = a.entryDir;
-    // the boss waits in the middle of the arena
-    // the guardian is sealed inside its arena (leash): it never follows you into the corridors
+    const lv = this.level, cq = this.conquestMode;
+    // Conquest: some ordinary foes are elites with an affix
+    if (cq) for (const sp of this.enemySpawns) if (Math.random() < 0.25) { sp.opts = { ...sp.opts, elite: true, affixes: [AFFIX_IDS[Math.floor(Math.random() * AFFIX_IDS.length)]] }; }
+    // the guardian waits in the middle of its arena, sealed inside (leash)
     const pad = 1.2;
     const leash = { x0: a.x * CELL + pad, z0: a.y * CELL + pad, x1: (a.x + a.w) * CELL - pad, z1: (a.y + a.h) * CELL - pad };
     this.arenaRect = leash;
-    this.enemySpawns.push({ type: this.bossType, pos: this.cellCenter(a.cx, a.cy), opts: { level: this.level, leash } });
+    const gMul = cq ? 1.5 : 1;
+    const bossOpts = { ...this.enemyOpts, level: lv, leash, guardian: true, hpMul: this.enemyOpts.hpMul * gMul, dmgMul: this.enemyOpts.dmgMul * (cq ? 1.2 : 1) };
+    if (this.bossType) this.enemySpawns.push({ type: this.bossType, pos: this.cellCenter(a.cx, a.cy), opts: { ...bossOpts, affixes: cq ? ['hasted'] : [] } });
+    else this.enemySpawns.push({ type: this.guardianType, pos: this.cellCenter(a.cx, a.cy), opts: { ...bossOpts, elite: true, affixes: this.guardianAffixes } });
+    // a rare Ash Hoarder somewhere on the level
+    if (Math.random() < 0.08 || this.game.forceHoarder) {
+      const rooms = this.layout.roomRects.filter((o) => !o.arena).slice(1);
+      const o = rooms[Math.floor(Math.random() * rooms.length)];
+      if (o) this.enemySpawns.push({ type: 'ash_hoarder', pos: this.cellCenter(o.x + Math.floor(o.w / 2), o.y + Math.floor(o.h / 2)), opts: { level: lv } });
+      this.game.forceHoarder = false;
+    }
     // two gates on the far side of the arena
     const ex = a.cx + sx * Math.floor(a.w / 2), ez = a.cy + sz * Math.floor(a.h / 2);
     const px = -sz, pz = sx;
@@ -507,19 +552,46 @@ export class MainDungeon extends Dungeon {
       const pos = this.cellCenter(c, r);
       return gate(this, { x: pos.x + sx * CELL * 0.25, z: pos.z + sz * CELL * 0.25, y: pos.y, yaw, ...o });
     };
-    const last = this.level >= MAIN_LEVELS;
+    const next = lv + 1;
     this.gates = [
-      mk(-2, { target: 'dungeon', descend: true, color: 'red', sign: last ? 'SEALED' : 'DESCEND', label: last ? '' : `Descend to level ${this.level + 1}`,
-        lockedLabel: last ? 'The deeper dark is sealed... for now' : 'Sealed until the guardian falls' }),
+      mk(-2, { target: 'dungeon', descend: true, color: 'red', sign: next > MAIN_LEVELS ? 'ABYSS' : 'DESCEND', label: next > MAIN_LEVELS ? `Descend into the Abyss (depth ${next})` : `Descend to level ${next}`,
+        lockedLabel: 'Sealed until the guardian falls' }),
       mk(2, { target: 'town', spawn: 'portal', color: 'blue', sign: 'RETURN', label: 'Return to town (your loot is kept)', lockedLabel: 'Sealed until the guardian falls' }),
     ];
-    this.gates[0].permanent = last;
     // remains of earlier Wanderers, each with a note
     const rooms = this.layout.roomRects.filter((o) => !o.arena).slice(1);
     for (let i = 0; i < Math.min(3, rooms.length); i++) {
       const o = rooms[Math.floor((i + 0.5) * rooms.length / 3)];
       const p = this.cellCenter(o.x + Math.floor(o.w / 2), o.y);
-      remains(this, p.x + 0.6, p.y, p.z + 0.4, [`catacombs:${this.level}`, 'catacombs']);
+      remains(this, p.x + 0.6, p.y, p.z + 0.4, [`catacombs:${Math.min(lv, 5)}`, 'catacombs']);
+    }
+    // traps (more in Conquest) and a healing shrine (never in Conquest)
+    let seed = lv * 7919 + (cq ? 1 : 0);
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const nTraps = (lv >= 3 ? 2 + Math.floor(lv / 8) : 0) + (cq ? 6 : 0);
+    const used = new Set(this.layout.spawns.map(([c, r]) => r * 1000 + c));
+    let placed = 0;
+    for (let t = 0; t < 400 && placed < nTraps; t++) {
+      const o = rooms[Math.floor(rnd() * rooms.length)];
+      if (!o) break;
+      const c = o.x + Math.floor(rnd() * o.w), r = o.y + Math.floor(rnd() * o.h);
+      const cell = this.at(r, c);
+      if (cell.type !== 'floor' || cell.raise || cell.pillar || used.has(r * 1000 + c)) continue;
+      used.add(r * 1000 + c);
+      const p = this.cellCenter(c, r);
+      spikeTrap(this, p.x, p.y, p.z, { damage: Math.round(14 * levelDmgMul(lv) * (cq ? 1.6 : 1)) });
+      placed++;
+    }
+    if (!cq && rooms.length > 2) {
+      const o = rooms[Math.floor(rooms.length / 2)];
+      for (let t = 0; t < 20; t++) {
+        const c = o.x + Math.floor(rnd() * o.w), r = o.y + Math.floor(rnd() * o.h);
+        const cell = this.at(r, c);
+        if (cell.type !== 'floor' || cell.raise || cell.pillar || used.has(r * 1000 + c)) continue;
+        const p = this.cellCenter(c, r);
+        healingShrine(this, p.x, p.y, p.z);
+        break;
+      }
     }
     this.arenaCenter = this.cellCenter(a.cx, a.cy);
     this.arenaEntry = this.cellCenter(a.cx - sx * (Math.floor(a.w / 2) - 1), a.cy - sz * (Math.floor(a.h / 2) - 1));
@@ -530,11 +602,16 @@ export class MainDungeon extends Dungeon {
 
   onBossDefeated(enemy) {
     for (const gt of this.gates) if (!gt.permanent) gt.open();
-    this.game.hud.banner(enemy.name + ' has fallen', 'the gates grind open');
+    this.game.hud.banner(enemy.name + ' has fallen', this.conquestMode ? 'the gates open \u2014 but the level is not yet yours' : 'the gates grind open');
   }
 
   onEnter() {
     super.onEnter();
+    if (this.conquestMode) {
+      const targets = this.game.enemies.list.filter((e) => !e.dead && !e.def.flee);
+      for (const e of targets) e.tags.conquest = true;
+      this.conquest = { total: targets.length, killed: 0, done: false };
+    }
     if (this.game.pendingArena) {
       this.game.pendingArena = false;
       const p = this.arenaEntry;

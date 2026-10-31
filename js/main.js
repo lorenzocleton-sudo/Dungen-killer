@@ -18,6 +18,9 @@ import { MainDungeon, RandomDungeon } from './world/dungeon.js';
 import { Castle } from './world/castle.js';
 import { OutdoorDungeon } from './world/outdoor.js';
 import { BIOMES } from './world/biomes.js';
+import { ProvingPit } from './world/pit.js';
+import { xpMul } from './systems/progression.js';
+import { ITEMS } from './systems/items.js';
 
 /** The Shifting Depths: a crypt (cell builder) or an open/cave biome. */
 function createDepths(g) {
@@ -47,9 +50,10 @@ const AREA_FACTORIES = {
   dungeon: (g) => new MainDungeon(g),
   depths: (g) => createDepths(g),
   castle: (g) => new Castle(g),
+  pit: (g) => new ProvingPit(g),
 };
 export function registerArea(id, factory) { AREA_FACTORIES[id] = factory; }
-const HOSTILE_AREAS = { dungeon: true, depths: true };
+const HOSTILE_AREAS = { dungeon: true, depths: true, pit: true };
 
 class Game {
   constructor() {
@@ -88,6 +92,7 @@ class Game {
     this.rewards = new Rewards(this);
     this.minimap = new Minimap(this);
     this.biomeIds = BIOME_IDS;
+    this.defOf = (it) => ITEMS[it.id];
     this.dungeonLevel = 1;
     this.systems = [this.enemies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
     this.admin = new AdminMenu(this);
@@ -107,6 +112,8 @@ class Game {
       this.hud.banner(L.title, L.sub);
     });
     events.on('enemyKilled', ({ enemy }) => {
+      if (enemy.guardian && !enemy.def.boss && this.area.onBossDefeated) this.area.onBossDefeated(enemy);
+      this.onConquestKill(enemy);
       if (!enemy.def.boss) return;
       if (BOSS_LORE[enemy.type]) setTimeout(() => this.hud.speak(BOSS_LORE[enemy.type].death, 6), 900);
       this.state.world.bosses[enemy.type] = (this.state.world.bosses[enemy.type] || 0) + 1;
@@ -114,6 +121,7 @@ class Game {
       // bosses always drop a Special, sometimes a Rare
       this.loot.spawn(this.rewards.randomItem(Math.random() < 0.3 ? 'rare' : 'special'), enemy.pos, 5);
       if (this.area.onBossDefeated) this.area.onBossDefeated(enemy);
+      if (this.restoration && !enemy.tags.summoned) this.restoration.add(enemy.type === 'hollow_king' ? 12 : 5, 'boss');
       this.state.save();
     });
     events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
@@ -278,6 +286,30 @@ class Game {
     this.hud.banner(a.name, line);
   }
 
+  /** Conquest: count kills, crown the level when every enemy is dead. */
+  onConquestKill(enemy) {
+    const a = this.area, c = a && a.conquest;
+    if (!c || c.done || !enemy.tags || !enemy.tags.conquest) return;
+    c.killed++;
+    if (c.killed < c.total) return;
+    c.done = true;
+    const w = this.state.world;
+    w.conquered = w.conquered || {};
+    const first = !w.conquered[a.level];
+    w.conquered[a.level] = true;
+    this.hud.banner('CONQUERED', `Level ${a.level} is yours${first ? ' \u2014 first conquest!' : ''}`);
+    if (first) {
+      // first clear: a guaranteed Rare chest, better loot, renown
+      const p = this.player.pos.clone();
+      this.loot.spawn(this.rewards.randomItem('rare', a.level + 2), p, 0);
+      this.loot.roll('chest', p, 4);
+      if (this.renown) { this.renown.data.bonus += 40 + a.level * 6; this.renown.changed(); }
+      if (this.restoration) this.restoration.add(1.5, 'conquest');
+      this.hud.feed(`First conquest of level ${a.level}: a Rare reward and renown`, '#f0d070');
+    }
+    this.state.save();
+  }
+
   enemyName(type) { return ENEMY_TYPES[type] ? ENEMY_TYPES[type].name : type; }
 
   /** XP with level-up feedback (used by kills and the admin menu). */
@@ -287,12 +319,31 @@ class Game {
     return lv;
   }
 
-  /** Main dungeon level N (step 6 replaces this with the levelled dungeon). */
-  enterDungeonLevel(level, toArena = false) {
-    if (!this.state.inRun) this.state.startRun();
+  /** Main dungeon level N (conquest = the optional full-clear hard mode). */
+  enterDungeonLevel(level, toArena = false, conquest = false) {
+    if (!this.state.inRun) { this.state.startRun(); this.state.save(); }
     this.dungeonLevel = level;
+    this.conquest = !!conquest;
     this.pendingArena = toArena;
     this.travelTo('dungeon', 'portal');
+  }
+
+  /** Levels you may start at: 1, every conquered level, the one after your highest conquest. */
+  startableLevels() {
+    const c = this.state.world.conquered || {};
+    const set = new Set([1]);
+    let hi = 0;
+    for (const k of Object.keys(c)) { set.add(+k); hi = Math.max(hi, +k); }
+    if (hi) set.add(hi + 1);
+    return [...set].sort((a, b) => a - b);
+  }
+
+  openLevelSelect() { this.openScreen('levels'); }
+
+  enterPit(tier) {
+    this.pitTier = tier;
+    if (!this.state.inRun) { this.state.startRun(); this.state.save(); }
+    this.travelTo('pit', 'portal');
   }
 
   openMenu() {
@@ -371,8 +422,9 @@ class Game {
       this.player.place(sp.pos.x, sp.pos.y, sp.pos.z, sp.yaw);
       this.area.onEnter(prev);
       if (this.area instanceof MainDungeon) {
-        this.renown.reachLevel(this.area.level);
+        this.renown.reachLevel(Math.min(this.area.level, 40));
         this.state.world.deepest = Math.max(this.state.world.deepest || 0, this.area.level);
+        if (this.area.level > 30) this.state.world.abyssBest = Math.max(this.state.world.abyssBest || 0, this.area.level);
       }
       const wl = this.area.weaponLighting();
       this.combat.weapon.setLighting(wl[0], wl[1]);
@@ -394,8 +446,12 @@ class Game {
     events.emit('portalUsed', { from: this.area.id, to: portal.target });
     const leavingHostile = this.area.hostile;
     const targetHostile = !!HOSTILE_AREAS[portal.target];
-    if (portal.descend) this.dungeonLevel++;
-    else if (portal.target === 'dungeon' && !leavingHostile) this.dungeonLevel = 1;
+    if (portal.descend) { this.dungeonLevel++; this.conquest = false; }
+    else if (portal.target === 'dungeon' && !leavingHostile) {
+      // the green portal: choose a depth (Waystone) once there is more than level 1
+      if (this.startableLevels().length > 1 || this.state.world.conquered && Object.keys(this.state.world.conquered).length) { this.portalCooldown = 1.5; this.openScreen('levels'); return; }
+      this.dungeonLevel = 1; this.conquest = false;
+    } else if (portal.target === 'pit' && !leavingHostile) { this.portalCooldown = 1.5; this.openScreen('pit'); return; }
     if (targetHostile && !leavingHostile) {
       // entering a dungeon: a fresh RUN begins, SAVED is what you walked in with
       this.state.startRun();
@@ -506,6 +562,7 @@ class Game {
       this.hud.update(dt, this.camera);
       return; // paused
     }
+    if (input.consume('levelselect') && !this.area.hostile && !this.player.dead && !this.transitioning) { this.openScreen('levels'); input.flush(); return; }
     if (input.consume('inventory') && !this.player.dead && !this.transitioning) {
       this.openScreen('inventory');
       input.flush();
@@ -555,6 +612,8 @@ class Game {
       if (this.saveTimer > 10) { this.saveTimer = 0; this.state.save(); }
     }
 
+    this.hud.conquest(area.conquest || null);
+    if (area.id !== 'pit') this.hud.pit(null);
     this.hud.setHp(this.player.hp, this.player.maxHp);
     let boss = null;
     for (const e of this.enemies.list) if (e.showsBar && (!boss || e.def.boss)) boss = e;

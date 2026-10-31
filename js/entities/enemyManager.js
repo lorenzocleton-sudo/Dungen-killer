@@ -1,10 +1,25 @@
 // Spawns, updates and cleans up enemies for the current area.
 import { Enemy } from './enemy.js';
+import { events } from '../engine/events.js';
 
 export class EnemyManager {
   constructor(game) {
     this.game = game;
     this.list = [];
+    events.on('enemyKilled', ({ enemy }) => {
+      const g = this.game;
+      // Splitting elites break into two lesser copies
+      if (enemy.affixes && enemy.affixes.includes('splitting') && !enemy.tags.split) {
+        for (const s of [-1, 1]) {
+          const p = enemy.pos.clone(); p.x += s * 0.9;
+          const c = this.spawnAt(enemy.type, p, enemy.area, { level: enemy.level, hpMul: 0.35 * (enemy.hpMul / Math.max(1, enemy.hpMul)), tags: { split: true, conquest: enemy.tags.conquest } });
+          c.maxHp = c.hp = Math.round(enemy.maxHp * 0.3); c.group.scale.multiplyScalar(0.75);
+          if (enemy.tags.conquest && enemy.area.conquest) enemy.area.conquest.total++;
+        }
+      }
+      // plague bearers burst into a poison cloud
+      if (enemy.def.deathCloud) g.projectiles.zone(enemy.area, enemy.pos.x, enemy.pos.y, enemy.pos.z, { r: 3, dur: 6, dps: 5 + enemy.level * 0.5, kind: 'poison', color: 0x80d040 });
+    });
   }
 
   /** Fresh enemies every visit (the dead return when you come back). */

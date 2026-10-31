@@ -7,6 +7,7 @@ import { Weapon } from '../player/weapon.js';
 import { events } from '../engine/events.js';
 import { computeStats } from './stats.js';
 import { ITEMS } from './items.js';
+import { xpMul } from './progression.js';
 
 const _v = new THREE.Vector3();
 
@@ -189,7 +190,9 @@ export class CombatSystem {
     }
     if (s.deathDance) this.nextCrit = true;
     g.hud.feed(`${d.name} falls  +${ashes} ashes`);
-    g.giveXp(Math.round(d.xp * (enemy.level ? 1 + (enemy.level - 1) * 0.25 : 1)));
+    // farming far below your level gives little XP (loot is unchanged)
+    const lv = enemy.level || 1;
+    g.giveXp(Math.round(d.xp * (1 + (lv - 1) * 0.25) * (lv > 1 ? xpMul(lv, g.state.progression.level) : 1)));
     events.emit('loot', { enemy, ashes });
   }
 

@@ -30,7 +30,19 @@ export const ENEMY_TYPES = {
   panther: base({ name: 'Jungle Panther', hp: 50, speed: 6, turn: 11, notice: 15, range: 1.7, reach: 2.1, damage: 13, windup: 0.35, strike: 0.12, recover: 0.5, lunge: 7, radius: 0.5, height: 1.1, xp: 24, ashes: [4, 9], renown: 3, hitColor: [0.15, 0.1, 0.05], build: () => buildWolf({ scale: 1.15, fur: 'chitin', eye: 0x90e050 }) }),
   poison_frog: base({ name: 'Poison Frog', hp: 14, speed: 4.5, turn: 12, notice: 9, range: 1.1, reach: 1.5, damage: 4, windup: 0.25, strike: 0.1, recover: 0.4, radius: 0.3, height: 0.5, xp: 6, ashes: [1, 3], renown: 0.8, swarm: true, onHit: { poison: 4 }, hitColor: [0.3, 0.6, 0.1], build: () => buildFrog() }),
 
-  // ---------------------------------------------------------------- bosses (one per main dungeon level)
+  // ---------------------------------------------------------------- deep enemies (levels 6-30, Abyss)
+  bone_colossus: base({ name: 'Bone Colossus', hp: 420, speed: 1.3, turn: 2, notice: 14, giveUp: 30, range: 3.2, reach: 3.8, damage: 38, windup: 1.2, strike: 0.25, recover: 1.4, lunge: 0.5, radius: 1.2, height: 4.2, poise: 120, xp: 160, ashes: [40, 70], renown: 14, heavy: true, armored: true, modelScale: 2.4, hitColor: [0.7, 0.65, 0.55], build: () => buildColossus() }),
+  plague_bearer: base({ name: 'Plague Bearer', hp: 120, speed: 1.7, turn: 4, notice: 11, range: 1.8, reach: 2.2, damage: 14, windup: 0.7, radius: 0.6, height: 2.0, poise: 30, xp: 50, ashes: [10, 20], renown: 5, onHit: { poison: 6 }, aura: { kind: 'poison', r: 2.4, dps: 5 }, deathCloud: true, hitColor: [0.4, 0.6, 0.15], build: () => buildPlague() }),
+  shade_assassin: base({ name: 'Shade Assassin', hp: 55, speed: 5.2, turn: 12, notice: 16, range: 1.5, reach: 1.9, damage: 22, windup: 0.32, strike: 0.1, recover: 0.4, lunge: 5, radius: 0.35, height: 1.8, xp: 45, ashes: [8, 16], renown: 5, invisible: true, hitColor: [0.15, 0.1, 0.2], build: () => buildShade() }),
+  ember_golem: base({ name: 'Ember Golem', hp: 300, speed: 1.6, turn: 3, notice: 13, range: 2.4, reach: 2.9, damage: 30, windup: 1.0, strike: 0.2, recover: 1.1, lunge: 1, radius: 0.85, height: 2.8, poise: 80, xp: 110, ashes: [26, 44], renown: 10, heavy: true, armored: true, modelScale: 1.6, onHit: { burn: 6 }, aura: { kind: 'burn', r: 2.0, dps: 4 }, hitColor: [1, 0.5, 0.15],
+    ranged: { range: 14, keep: 4, cooldown: 3.5, damage: 18, windup: 0.8, projectile: { color: 0xff6a20, size: 0.3, speed: 11, burn: 6 } }, build: () => buildGolem() }),
+  drowned_knight: base({ name: 'Drowned Knight', hp: 180, speed: 2.0, turn: 3.5, notice: 13, giveUp: 32, range: 2.3, reach: 2.8, damage: 28, windup: 0.85, strike: 0.2, recover: 1.0, radius: 0.55, height: 2.3, poise: 45, xp: 75, ashes: [18, 32], renown: 8, armored: true, heavy: true, modelScale: 1.22, onHit: { slow: 1.2 }, hitColor: [0.3, 0.5, 0.45], build: () => buildKnight({ weapon: 'axe', drowned: true }) }),
+  rime_giant: base({ name: 'Rime Giant', hp: 520, speed: 1.2, turn: 2, notice: 14, giveUp: 30, range: 3.0, reach: 3.6, damage: 40, windup: 1.3, strike: 0.25, recover: 1.4, lunge: 0.5, radius: 1.3, height: 4.4, poise: 140, xp: 190, ashes: [44, 76], renown: 16, heavy: true, armored: true, frost: true, modelScale: 2.4, onHit: { slow: 2 }, hitColor: [0.6, 0.8, 1], build: () => buildBrute({ scale: 2.4, frost: true }) }),
+  gargoyle: base({ name: 'Gargoyle', hp: 90, speed: 4.4, turn: 7, notice: 15, range: 1.8, reach: 2.3, damage: 18, windup: 0.5, recover: 0.7, lunge: 4, radius: 0.6, height: 1.6, xp: 48, ashes: [9, 18], renown: 5, armored: true, flying: 2.6, hitColor: [0.5, 0.5, 0.5], build: () => buildGargoyle() }),
+  mimic: base({ name: 'Mimic', hp: 160, speed: 3.8, turn: 8, notice: 2.2, range: 1.8, reach: 2.3, damage: 26, windup: 0.4, strike: 0.15, recover: 0.6, lunge: 4, radius: 0.6, height: 1.0, poise: 40, xp: 70, ashes: [40, 90], renown: 6, mimic: true, hitColor: [0.4, 0.25, 0.1], build: () => buildMimic() }),
+  ash_hoarder: base({ name: 'Ash Hoarder', hp: 70, speed: 6.4, turn: 12, notice: 14, range: 0, reach: 0, damage: 0, windup: 1, radius: 0.4, height: 1.2, xp: 60, ashes: [180, 320], renown: 6, flee: true, hitColor: [0.6, 0.5, 0.3], build: () => buildHoarder() }),
+
+  // ---------------------------------------------------------------- bosses (story guardians every 5 levels)
   grave_warden: base({ name: 'The Grave Warden', boss: true, hp: 900, speed: 2.4, turn: 2.6, notice: 18, giveUp: 99, range: 3.5, reach: 4, damage: 30, windup: 1, radius: 1.1, height: 4.4, xp: 400, ashes: [200, 260], renown: 40, armored: true, heavy: true, modelScale: 2.3, hitColor: [0.6, 0.45, 0.25],
     attacks: ['sweep', 'slam', 'charge'], phase2: ['nova', 'summon:hollow:2', 'sweep'], build: () => buildKnight({ scale: 2.3, cape: true }) }),
   brood_mother: base({ name: 'The Brood Mother', boss: true, hp: 1000, speed: 3.2, turn: 3.5, notice: 18, giveUp: 99, range: 3.2, reach: 3.8, damage: 26, windup: 0.9, radius: 1.6, height: 2.6, xp: 450, ashes: [240, 300], renown: 45, modelScale: 2.7, onHit: { slow: 1.5 }, hitColor: [0.15, 0.25, 0.08],
@@ -39,11 +51,15 @@ export const ENEMY_TYPES = {
     attacks: ['charge', 'sweep', 'leap'], phase2: ['charge2', 'nova', 'leap'], build: () => buildWolf({ scale: 2.5, spikes: true }) }),
   ashen_abbot: base({ name: 'The Ashen Abbot', boss: true, hp: 1250, speed: 2.2, turn: 3, notice: 20, giveUp: 99, range: 2.6, reach: 3.2, damage: 30, windup: 0.9, radius: 0.9, height: 3.6, xp: 600, ashes: [320, 400], renown: 55, modelScale: 1.9, hitColor: [1, 0.45, 0.1],
     attacks: ['volley:fire', 'nova:fire', 'blink', 'summon:imp:2'], phase2: ['rain', 'volley:fire5', 'nova:fire'], build: () => buildAbbot() }),
+  hollow_king: base({ name: 'The Hollow King', boss: true, hp: 2600, speed: 2.6, turn: 3, notice: 24, giveUp: 99, range: 3.6, reach: 4.4, damage: 44, windup: 0.95, radius: 1.2, height: 5.2, xp: 2000, ashes: [900, 1200], renown: 120, armored: true, heavy: true, modelScale: 2.5, hitColor: [0.8, 0.7, 0.4],
+    phase3Line: 'lets the crown fall \u2014 the hollow beneath is burning', attacks: ['sweep', 'slam', 'charge', 'volley:fire'], phase2: ['summon:knight:2', 'nova', 'leap', 'shockwave'], phase3: ['rain', 'charge2', 'blink', 'nova:fire', 'shockwave'], build: () => buildKnight({ scale: 2.5, cape: true, crown: true, weapon: 'greatsword' }) }),
   drowned_lord: base({ name: 'The Drowned Lord', boss: true, hp: 1500, speed: 2.3, turn: 2.6, notice: 20, giveUp: 99, range: 3.8, reach: 4.4, damage: 36, windup: 1.05, radius: 1.3, height: 4.6, xp: 750, ashes: [400, 500], renown: 65, armored: true, heavy: true, modelScale: 2.2, onHit: { slow: 1.5 }, hitColor: [0.3, 0.5, 0.45],
     attacks: ['slam', 'sweep', 'volley:water'], phase2: ['nova:water', 'summon:wraith:2', 'charge', 'rain'], build: () => buildBrute({ scale: 2.2, drowned: true }) }),
 };
 
-export const BOSS_BY_LEVEL = ['grave_warden', 'brood_mother', 'ashen_abbot', 'kings_hound', 'drowned_lord'];
+/** Story guardians at levels 5, 10, 15, 20, 25 and 30. */
+export const BOSS_BY_LEVEL = ['grave_warden', 'brood_mother', 'ashen_abbot', 'kings_hound', 'drowned_lord', 'hollow_king'];
+export const STORY_LEVELS = { 5: 'grave_warden', 10: 'brood_mother', 15: 'ashen_abbot', 20: 'kings_hound', 25: 'drowned_lord', 30: 'hollow_king' };
 
 // Per-enemy material clones so each one can flash when hit.
 function mats(names) {
@@ -60,6 +76,7 @@ function limb(w, h, d, m, x, y, z) {
   pivot.add(mesh);
   return pivot;
 }
+const at = (m, x, y, z) => { m.position.set(x, y, z); return m; };
 function eyes(parent, color, y, z, spread = 0.07, size = 0.045) {
   const m = basicMaterial(color);
   for (const s of [-1, 1]) { const e = boxM(size, size * 0.7, 0.02, m); e.position.set(s * spread, y, z); parent.add(e); }
@@ -108,7 +125,10 @@ function buildGhoul() {
 }
 
 function buildKnight(o = {}) {
-  const M = mats(['ironPlate', 'iron', 'clothRed', 'ironDark']);
+  const M = mats(['ironPlate', 'iron', o.drowned ? 'moss' : 'clothRed', 'ironDark']);
+  M.clothRed = M[o.drowned ? 'moss' : 'clothRed'];
+  if (o.drowned) { M.ironPlate.color.setHex(0x80a090); M.iron.color.setHex(0x90a8a0); }
+  if (o.crown) { M.ironPlate.color.setHex(0x6a6070); M.ironDark.color.setHex(0x40384a); }
   const root = new THREE.Group();
   root.scale.setScalar(o.scale || 1.22);
   const hips = new THREE.Group(); hips.position.y = 0.95; root.add(hips);
@@ -126,7 +146,13 @@ function buildKnight(o = {}) {
   const helm = boxM(0.32, 0.38, 0.34, M.iron); helm.position.y = 0.12; head.add(helm);
   const crest = boxM(0.05, 0.12, 0.34, M.ironDark); crest.position.y = 0.36; head.add(crest);
   const slit = boxM(0.24, 0.035, 0.02, basicMaterial(0x050302)); slit.position.set(0, 0.15, 0.175); head.add(slit);
-  eyes(head, o.cape ? 0x60c0ff : 0xd06020, 0.15, 0.18, 0.06, 0.035);
+  eyes(head, o.crown ? 0xffd060 : o.drowned ? 0x60e0c0 : o.cape ? 0x60c0ff : 0xd06020, 0.15, 0.18, 0.06, 0.035);
+  if (o.crown) {
+    const gold = basicMaterial(0xc8a040);
+    for (let i = 0; i < 5; i++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4), gold); const a = (i / 5) * Math.PI * 2; sp.position.set(Math.cos(a) * 0.15, 0.4, Math.sin(a) * 0.15); head.add(sp); }
+    head.add(at(boxM(0.36, 0.06, 0.36, gold), 0, 0.31, 0));
+    glowAt(head, 0xffc040, 0, 0.3, 0, 0.9, 0.4);
+  }
   if (o.cape) glowAt(head, 0x60a0ff, 0, 0.15, 0.25, 0.6, 0.5);
   const armL = limb(0.16, 0.72, 0.17, M.ironDark, -0.42, 0.6, 0); torso.add(armL);
   const armR = limb(0.16, 0.72, 0.17, M.ironDark, 0.42, 0.6, 0); torso.add(armR);
@@ -242,8 +268,9 @@ function buildImp() {
 }
 
 function buildBrute(o = {}) {
-  const M = mats(o.drowned ? ['ironDark', 'moss', 'flesh', 'iron'] : ['ironPlate', 'ironDark', 'flesh', 'iron']);
-  const armorM = o.drowned ? M.ironDark : M.ironPlate, under = o.drowned ? M.moss : M.ironDark;
+  const M = mats(o.drowned ? ['ironDark', 'moss', 'flesh', 'iron'] : o.frost ? ['ice', 'iceWall', 'snow', 'iron'] : ['ironPlate', 'ironDark', 'flesh', 'iron']);
+  const armorM = o.drowned ? M.ironDark : o.frost ? M.ice : M.ironPlate, under = o.drowned ? M.moss : o.frost ? M.iceWall : M.ironDark;
+  if (o.frost) M.flesh = M.snow;
   const root = new THREE.Group();
   root.scale.setScalar(o.scale || 1.45);
   const hips = new THREE.Group(); hips.position.y = 0.85; root.add(hips);
@@ -254,11 +281,12 @@ function buildBrute(o = {}) {
   const plate = boxM(0.78, 0.5, 0.54, armorM); plate.position.y = 0.55; torso.add(plate);
   const head = new THREE.Group(); head.position.set(0, 0.92, 0.1); torso.add(head);
   head.add(boxM(0.3, 0.3, 0.3, armorM));
-  eyes(head, o.drowned ? 0x60e0c0 : 0xd06020, 0.02, 0.16, 0.07, 0.04);
+  eyes(head, o.drowned ? 0x60e0c0 : o.frost ? 0xa0e8ff : 0xd06020, 0.02, 0.16, 0.07, 0.04);
+  if (o.frost) glowAt(head, 0x80d0ff, 0, 0, 0.2, 1.2, 0.4);
   if (o.drowned) { for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.3, 4), M.iron); c.position.set(-0.1 + i * 0.1, 0.25, 0); head.add(c); } glowAt(head, 0x40c0a0, 0, 0, 0.2, 0.8, 0.5); }
   const armL = limb(0.22, 0.8, 0.24, under, -0.5, 0.7, 0); torso.add(armL);
   const armR = limb(0.22, 0.8, 0.24, under, 0.5, 0.7, 0); torso.add(armR);
-  const wpn = buildWeapon(o.weapon || (o.drowned ? 'trident' : 'hammer'));
+  const wpn = buildWeapon(o.weapon || (o.drowned ? 'trident' : 'hammer'), o.frost ? { tint: 0xa0d0ff } : {});
   wpn.scale.setScalar(o.drowned ? 1.3 : 1.15);
   armR.add(handMount(wpn, 0.8));
   return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 2.2, hipY: 0.85, lean: 0.2 };
@@ -340,4 +368,143 @@ function buildFrog() {
   const legL = limb(0.08, 0.24, 0.08, M.moss, -0.17, 0, -0.12); hips.add(legL);
   const legR = limb(0.08, 0.24, 0.08, M.moss, 0.17, 0, -0.12); hips.add(legR);
   return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'crawler', eyeH: 0.3, hipY: 0.22 };
+}
+
+// ---------------------------------------------------------------- deep enemies
+function buildColossus() {
+  const M = mats(['bone', 'ironDark']);
+  const root = new THREE.Group(); root.scale.setScalar(2.4);
+  const hips = new THREE.Group(); hips.position.y = 0.95; root.add(hips);
+  const legL = limb(0.11, 0.95, 0.11, M.bone, -0.15, 0, 0); hips.add(legL);
+  const legR = limb(0.11, 0.95, 0.11, M.bone, 0.15, 0, 0); hips.add(legR);
+  hips.add(boxM(0.42, 0.14, 0.24, M.bone));
+  const torso = new THREE.Group(); hips.add(torso); torso.rotation.x = 0.2;
+  for (let i = 0; i < 5; i++) { const r = boxM(0.5 - i * 0.03, 0.05, 0.3, M.bone); r.position.y = 0.18 + i * 0.11; torso.add(r); }
+  torso.add(at(boxM(0.08, 0.7, 0.08, M.bone), 0, 0.38, -0.08));
+  const head = new THREE.Group(); head.position.set(0, 0.86, 0.05); torso.add(head);
+  head.add(boxM(0.3, 0.32, 0.32, M.bone));
+  const jaw = boxM(0.24, 0.08, 0.22, M.bone); jaw.position.set(0, -0.2, 0.05); head.add(jaw);
+  eyes(head, 0xff5020, 0.03, 0.165, 0.07, 0.05); glowAt(head, 0xff4010, 0, 0.03, 0.2, 0.7, 0.5);
+  const armL = limb(0.1, 0.9, 0.1, M.bone, -0.36, 0.72, 0); torso.add(armL);
+  const armR = limb(0.1, 0.9, 0.1, M.bone, 0.36, 0.72, 0); torso.add(armR);
+  const club = buildWeapon('hammer', { tint: 0xc8bca0 }); club.scale.setScalar(0.9); armR.add(handMount(club, 0.9));
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.8, hipY: 0.95, lean: 0.2 };
+}
+
+function buildPlague() {
+  const M = mats(['flesh', 'cloth', 'moss']);
+  M.flesh.color.setHex(0x9ab070);
+  const root = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = 0.8; root.add(hips);
+  const legL = limb(0.16, 0.8, 0.16, M.cloth, -0.18, 0, 0); hips.add(legL);
+  const legR = limb(0.16, 0.8, 0.16, M.cloth, 0.18, 0, 0); hips.add(legR);
+  const torso = new THREE.Group(); hips.add(torso); torso.rotation.x = 0.15;
+  const belly = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), M.flesh); belly.position.y = 0.4; belly.scale.set(1.1, 1, 1); torso.add(belly);
+  for (let i = 0; i < 5; i++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.1, 0), M.moss); const a = i * 1.3; b.position.set(Math.cos(a) * 0.45, 0.3 + (i % 3) * 0.15, Math.sin(a) * 0.45); torso.add(b); }
+  glowAt(torso, 0x90d040, 0, 0.4, 0, 2.2, 0.25);
+  const head = new THREE.Group(); head.position.set(0, 0.95, 0.12); torso.add(head);
+  head.add(boxM(0.22, 0.24, 0.22, M.flesh)); eyes(head, 0xc0ff60, 0.03, 0.115, 0.05, 0.035);
+  const armL = limb(0.12, 0.7, 0.12, M.flesh, -0.5, 0.65, 0); torso.add(armL);
+  const armR = limb(0.12, 0.7, 0.12, M.flesh, 0.5, 0.65, 0); torso.add(armR);
+  armR.add(handMount(buildWeapon('mace', { tint: 0x708060 }), 0.7));
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.8, hipY: 0.8, lean: 0.15 };
+}
+
+function buildShade() {
+  const M = mats(['cloth', 'ironDark']);
+  M.cloth.color.setHex(0x201a28); M.cloth.transparent = true; M.ironDark.transparent = true;
+  const root = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = 0.95; root.add(hips);
+  const legL = limb(0.1, 0.95, 0.1, M.cloth, -0.1, 0, 0); hips.add(legL);
+  const legR = limb(0.1, 0.95, 0.1, M.cloth, 0.1, 0, 0); hips.add(legR);
+  const torso = new THREE.Group(); hips.add(torso); torso.rotation.x = 0.35;
+  torso.add(at(boxM(0.36, 0.6, 0.22, M.cloth), 0, 0.3, 0));
+  const head = new THREE.Group(); head.position.set(0, 0.7, 0.06); torso.add(head);
+  const hood = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.42, 6), M.cloth); hood.position.y = 0.1; head.add(hood);
+  eyes(head, 0xb070ff, 0.02, 0.13, 0.05, 0.035);
+  const armL = limb(0.08, 0.66, 0.08, M.cloth, -0.26, 0.55, 0); torso.add(armL);
+  const armR = limb(0.08, 0.66, 0.08, M.cloth, 0.26, 0.55, 0); torso.add(armR);
+  armR.add(handMount(buildWeapon('dagger', { tint: 0x8070a0 }), 0.66));
+  armL.add(handMount(buildWeapon('dagger', { tint: 0x8070a0 }), 0.66));
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.6, hipY: 0.95, lean: 0.35 };
+}
+
+function buildGolem() {
+  const M = mats(['rock', 'lava']);
+  const root = new THREE.Group(); root.scale.setScalar(1.6);
+  const hips = new THREE.Group(); hips.position.y = 0.8; root.add(hips);
+  const legL = limb(0.26, 0.8, 0.26, M.rock, -0.2, 0, 0); hips.add(legL);
+  const legR = limb(0.26, 0.8, 0.26, M.rock, 0.2, 0, 0); hips.add(legR);
+  const torso = new THREE.Group(); hips.add(torso); torso.rotation.x = 0.15;
+  torso.add(at(boxM(0.8, 0.75, 0.5, M.rock), 0, 0.4, 0));
+  torso.add(at(boxM(0.5, 0.12, 0.52, M.lava), 0, 0.45, 0.01));
+  glowAt(torso, 0xff6020, 0, 0.45, 0.3, 1.4, 0.5);
+  const head = new THREE.Group(); head.position.set(0, 0.9, 0.1); torso.add(head);
+  head.add(boxM(0.32, 0.26, 0.3, M.rock)); eyes(head, 0xffa020, 0.02, 0.155, 0.07, 0.05);
+  const armL = limb(0.24, 0.85, 0.24, M.rock, -0.55, 0.7, 0); torso.add(armL);
+  const armR = limb(0.24, 0.85, 0.24, M.rock, 0.55, 0.7, 0); torso.add(armR);
+  for (const a of [armL, armR]) { const f = boxM(0.3, 0.3, 0.3, M.lava); f.position.y = -0.9; a.add(f); }
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 2.4, hipY: 0.8, lean: 0.15 };
+}
+
+function buildGargoyle() {
+  const M = mats(['stoneDark', 'stone']);
+  const root = new THREE.Group();
+  const body = new THREE.Group(); body.position.y = 0.4; root.add(body);
+  body.add(at(boxM(0.5, 0.6, 0.4, M.stoneDark), 0, 0.6, 0));
+  const head = boxM(0.3, 0.28, 0.32, M.stoneDark); head.position.set(0, 1.05, 0.1); body.add(head);
+  for (const s2 of [-1, 1]) { const h = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.25, 4), M.stone); h.position.set(s2 * 0.1, 1.28, 0.05); h.rotation.x = -0.4; body.add(h); }
+  eyes(body, 0xff3020, 1.07, 0.27, 0.07, 0.04);
+  const wings = [];
+  for (const s2 of [-1, 1]) {
+    const w = new THREE.Group(); w.position.set(s2 * 0.2, 0.85, -0.15);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.7), litMaterial('stoneDark', { side: THREE.DoubleSide })); m.position.x = s2 * 0.5; w.add(m);
+    body.add(w); wings.push(w);
+  }
+  const armL = limb(0.1, 0.6, 0.1, M.stoneDark, -0.3, 0.8, 0.05); body.add(armL);
+  const armR = limb(0.1, 0.6, 0.1, M.stoneDark, 0.3, 0.8, 0.05); body.add(armR);
+  for (const s2 of [-1, 1]) body.add(at(boxM(0.12, 0.45, 0.14, M.stoneDark), s2 * 0.14, 0.15, 0));
+  return { root, body, armL, armR, wings, mats: M, kind: 'float', eyeH: 1.1 };
+}
+
+function buildMimic() {
+  const M = mats(['woodDark', 'ironDark', 'flesh']);
+  const root = new THREE.Group();
+  const body = new THREE.Group(); body.position.y = 0.55; root.add(body);
+  body.add(at(boxM(1.1, 0.55, 0.7, M.woodDark), 0, -0.27, 0));
+  const lid = new THREE.Group(); lid.position.set(0, 0, -0.35); body.add(lid);
+  lid.add(at(boxM(1.14, 0.22, 0.74, M.woodDark), 0, 0.11, 0.35));
+  for (const x of [-0.4, 0.4]) body.add(at(boxM(0.08, 0.6, 0.74, M.ironDark), x, -0.25, 0));
+  const teeth = new THREE.Group(); body.add(teeth);
+  for (let i = 0; i < 7; i++) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.14, 4), litMaterial('bone')); t.position.set(-0.45 + i * 0.15, 0.04, 0.33); t.rotation.x = Math.PI; teeth.add(t); }
+  const tongue = boxM(0.2, 0.05, 0.5, M.flesh); tongue.position.set(0, 0.0, 0.3); teeth.add(tongue);
+  const legs = [];
+  for (const s2 of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const leg = new THREE.Group(); leg.position.set(s2 * 0.45, -0.4, 0.22 - i * 0.22);
+    leg.userData.baseY = s2 > 0 ? 0 : Math.PI; leg.userData.baseZ = 0; leg.rotation.y = leg.userData.baseY;
+    const up = boxM(0.4, 0.05, 0.05, M.flesh); up.position.set(0.18, 0.08, 0); up.rotation.z = 0.5; leg.add(up);
+    const lo = boxM(0.05, 0.45, 0.05, M.flesh); lo.position.set(0.36, -0.1, 0); leg.add(lo);
+    body.add(leg); legs.push(leg);
+  }
+  return { root, body, legs, lid, teeth, mats: M, kind: 'spider', eyeH: 0.7, hipY: 0.55, mimic: true };
+}
+
+function buildHoarder() {
+  const M = mats(['clothBrown', 'flesh', 'cloth']);
+  M.flesh.color.setHex(0x8a9a60);
+  const root = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = 0.55; root.add(hips);
+  const legL = limb(0.1, 0.55, 0.1, M.flesh, -0.1, 0, 0); hips.add(legL);
+  const legR = limb(0.1, 0.55, 0.1, M.flesh, 0.1, 0, 0); hips.add(legR);
+  const torso = new THREE.Group(); hips.add(torso); torso.rotation.x = 0.5;
+  torso.add(at(boxM(0.3, 0.4, 0.22, M.clothBrown), 0, 0.2, 0));
+  const sack = new THREE.Mesh(new THREE.IcosahedronGeometry(0.38, 1), M.cloth); sack.position.set(0, 0.35, -0.3); torso.add(sack);
+  glowAt(torso, 0xffc060, 0, 0.4, -0.3, 1.2, 0.45);
+  const head = new THREE.Group(); head.position.set(0, 0.5, 0.08); torso.add(head);
+  head.add(boxM(0.22, 0.2, 0.22, M.flesh));
+  for (const s2 of [-1, 1]) { const e = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4), M.flesh); e.position.set(s2 * 0.15, 0.05, 0); e.rotation.z = -s2 * 1.2; head.add(e); }
+  eyes(head, 0xffe060, 0.02, 0.115, 0.05, 0.035);
+  const armL = limb(0.07, 0.45, 0.07, M.flesh, -0.2, 0.35, 0); torso.add(armL);
+  const armR = limb(0.07, 0.45, 0.07, M.flesh, 0.2, 0.35, 0); torso.add(armR);
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.0, hipY: 0.55, lean: 0.5 };
 }

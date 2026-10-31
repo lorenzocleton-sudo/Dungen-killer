@@ -45,7 +45,19 @@ export class Projectiles {
     for (const p of this.list) p.area.scene.remove(p.g);
     for (const p of this.stuck) p.area.scene.remove(p.g);
     for (const w of this.waves) w.dispose();
-    this.list.length = 0; this.stuck.length = 0; this.waves.length = 0;
+    for (const z of this.zones || []) z.area.scene.remove(z.m);
+    this.list.length = 0; this.stuck.length = 0; this.waves.length = 0; this.zones = [];
+  }
+
+  /** Lingering ground zone (poison cloud, fire pool): hurts the player standing in it. */
+  zone(area, x, y, z, o = {}) {
+    const r = o.r || 3, col = o.color ?? 0x80d040;
+    const geo = new THREE.CircleGeometry(r, 24); geo.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    m.position.set(x, y + 0.08, z); area.scene.add(m);
+    const zz = { m, area, x, y, z, r, t: o.dur || 5, dps: o.dps || 6, kind: o.kind || 'poison', col: new THREE.Color(col).toArray(), enemies: !!o.hurtsEnemies, dmg: o.enemyDps || 0 };
+    (this.zones || (this.zones = [])).push(zz);
+    return zz;
   }
 
   /** Ground shockwave ring from a heavy slam: fixed on the ground, jump to avoid it. */
@@ -104,6 +116,15 @@ export class Projectiles {
       if (a.life <= 0) { a.area.scene.remove(a.g); this.stuck.splice(i, 1); }
     }
     for (let i = this.waves.length - 1; i >= 0; i--) if (this.waves[i].update(dt, g)) { this.waves[i].dispose(); this.waves.splice(i, 1); }
+    for (let i = (this.zones || []).length - 1; i >= 0; i--) {
+      const z = this.zones[i];
+      z.t -= dt;
+      z.m.material.opacity = 0.18 + Math.sin(z.t * 6) * 0.05;
+      if (Math.random() < dt * 20) z.area.dust.emit(z.x + (Math.random() - 0.5) * z.r * 1.6, z.y + 0.2, z.z + (Math.random() - 0.5) * z.r * 1.6, 0, 0.5, 0, 1.2, z.col, 0.12);
+      if (!z.enemies && !pl.dead && Math.hypot(pl.pos.x - z.x, pl.pos.z - z.z) < z.r && Math.abs(pl.pos.y - z.y) < 2) pl.addDot(z.dps, 0.6, z.kind);
+      if (z.enemies) for (const e of g.enemies.list) if (!e.dead && Math.hypot(e.pos.x - z.x, e.pos.z - z.z) < z.r) { z.acc = (z.acc || 0); e.dot(z.kind === 'burn' ? 'burn' : 'poison', z.dmg, 1); }
+      if (z.t <= 0) { z.area.scene.remove(z.m); z.m.geometry.dispose(); z.m.material.dispose(); this.zones.splice(i, 1); }
+    }
   }
 }
 

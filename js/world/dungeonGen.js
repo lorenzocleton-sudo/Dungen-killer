@@ -172,7 +172,7 @@ function tryGenerate(seed, opts) {
   const pickType = (o) => {
     const tbl = opts.enemies || [['hollow', 5], ['ghoul', 3], ['knight', 1]];
     const heavyBoost = 0.5 + o.level * 0.35 + (o.hall ? 0.4 : 0);
-    const w = tbl.map(([t, wt]) => [t, wt * (['knight', 'brute'].includes(t) ? heavyBoost : 1)]);
+    const w = tbl.map(([t, wt]) => [t, wt * (['knight', 'brute', 'bone_colossus', 'rime_giant', 'ember_golem', 'drowned_knight'].includes(t) ? heavyBoost : 1)]);
     let roll = rnd() * w.reduce((s, [, x]) => s + x, 0);
     for (const [t, x] of w) { roll -= x; if (roll <= 0) return t; }
     return w[0][0];
@@ -206,7 +206,7 @@ function tryGenerate(seed, opts) {
       if (!taken.some(([c, r]) => c === cx && r === cy)) braziers.push([cx, cy]);
     }
     if (o.hall) for (const [dx, dy] of [[1, 1], [o.w - 2, 1], [1, o.h - 2], [o.w - 2, o.h - 2]]) if (!cells[o.y + dy][o.x + dx].pillar) braziers.push([o.x + dx, o.y + dy]);
-    const kinds = ['bones', 'bones', 'rubble', 'sarcophagus'];
+    const kinds = opts.decor || ['bones', 'bones', 'rubble', 'sarcophagus'];
     for (let i = 0; i < Math.floor(area / 10); i++) {
       const p = freeCell(o, taken);
       if (p) { taken.push(p); decor.push([p[0], p[1], kinds[Math.floor(rnd() * kinds.length)]]); }

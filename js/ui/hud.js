@@ -126,6 +126,28 @@ export class HUD {
     this.prompt(text ? key + text : '');
   }
 
+  /** Proving Pit status line (+ "Leave now" button during breaks). */
+  pit(text, leave, onLeave) {
+    const el = document.getElementById('pit-hud');
+    if (!text) { el.classList.remove('show'); this._pitKey = null; return; }
+    el.classList.add('show');
+    const key = text + (leave ? '|L' : '');
+    if (key === this._pitKey) return;
+    this._pitKey = key;
+    el.innerHTML = `<div>${text}</div>` + (leave && this._pitWave !== false ? `<button id="pit-leave">Leave now (keep loot) <small>[E]</small></button>` : '');
+    const b = document.getElementById('pit-leave');
+    if (b) { const go = (e) => { e.preventDefault(); e.stopPropagation(); onLeave && onLeave(); }; b.addEventListener('click', go); b.addEventListener('touchstart', go, { passive: false }); }
+  }
+
+  /** Conquest kill counter. */
+  conquest(c) {
+    const el = document.getElementById('conquest-ctr');
+    if (!c) { el.classList.remove('show'); return; }
+    el.classList.add('show');
+    const t = c.done ? '\u265B CONQUERED' : `CONQUEST \u2014 ${c.killed} / ${c.total} slain`;
+    if (el.textContent !== t) el.textContent = t;
+  }
+
   setRunInfo(text) { if (this.el.run.textContent !== text) this.el.run.textContent = text; }
 
   banner(title, sub = '') {

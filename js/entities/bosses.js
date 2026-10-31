@@ -38,7 +38,7 @@ export class BossBrain {
 
   pick(dist) {
     const d = this.e.def;
-    const list = this.phase === 2 ? [...d.attacks, ...d.phase2] : d.attacks;
+    const list = this.phase >= 3 ? [...d.attacks, ...d.phase2, ...(d.phase3 || [])] : this.phase === 2 ? [...d.attacks, ...d.phase2] : d.attacks;
     // close-range attacks only when close, ranged ones otherwise
     const near = ['sweep', 'slam', 'nova'];
     let options = list.filter((a) => (dist < d.reach * 1.6 ? true : !near.includes(a.split(':')[0])));
@@ -82,6 +82,7 @@ export class BossBrain {
         tele({ r: a.r }, a.tx, a.tz); a.wind *= 1.2; a.act = 0.55; break;
       case 'volley': a.wind *= 0.75; break;
       case 'summon': a.wind = 1.0; break;
+      case 'shockwave': a.wind *= 0.9; break;
       case 'blink': a.wind = 0.5; break;
       case 'rain':
         a.spots = [];
@@ -147,6 +148,7 @@ export class BossBrain {
         }
         break;
       }
+      case 'shockwave': if (ctx.game.shockwave) ctx.game.shockwave(e, 12, { frost: e.def.frost }); break;
       case 'blink': {
         for (let tries = 0; tries < 12; tries++) {
           const ang = Math.random() * Math.PI * 2, rr = 6 + Math.random() * 3;
@@ -169,8 +171,18 @@ export class BossBrain {
   update(dt, ctx, dist, faceYaw) {
     const e = this.e, d = e.def, p = ctx.player;
     let moveSpeed = 0, targetYaw = faceYaw;
-    // phase 2 at half health
-    if (this.phase === 1 && e.hp < e.maxHp * 0.5) {
+    // phase 2 at half health (three-phase bosses: 66% and 33%)
+    const p3 = !!d.phase3;
+    if (p3 && this.phase === 2 && e.hp < e.maxHp * 0.33) {
+      this.phase = 3;
+      e.dmgMul *= 1.15; e.spd *= 1.15;
+      this.atk = null; this.clear(); this.cool = 1.5;
+      e.area.glow.burst(e.pos.x, e.pos.y + e.height * 0.6, e.pos.z, 90, 8, 1.2, [1, 0.8, 0.3], 0.12, 0, 1);
+      ctx.game.hud.banner(e.name, e.def.phase3Line || 'casts off the last of the crown');
+      p.shake = 1;
+      events.emit('bossPhase', { enemy: e, phase: 3 });
+    }
+    if (this.phase === 1 && e.hp < e.maxHp * (p3 ? 0.66 : 0.5)) {
       this.phase = 2;
       e.dmgMul *= 1.2;
       this.atk = null; this.clear(); this.cool = 1.2;

@@ -7,14 +7,19 @@ import { RANKS } from '../systems/renown.js';
 import { NOTES, NOTE_MAP, ITEM_LORE, RANK_EPITHET } from '../../data/lore.js';
 import { statRows } from '../systems/stats.js';
 import { SpatialNav } from './nav.js';
+import { dangerFor, recommendedLevel } from '../systems/progression.js';
+import { STORY_LEVELS } from '../entities/enemyTypes.js';
+import { BIOMES, bandFor } from '../world/biomes.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const TITLES = { inventory: 'Inventory', shop: 'The Ashen Market', trainer: 'Hall of Paths' };
+const TITLES = { inventory: 'Inventory', shop: 'The Ashen Market', trainer: 'Hall of Paths', levels: 'The Waystone \u2014 choose your depth', pit: 'The Proving Pit' };
 const TABS = {
   inventory: [['items', 'Items'], ['status', 'Renown'], ['tree', 'Skill Tree'], ['journal', 'Lore Journal']],
   shop: [['buy', 'Buy'], ['sell', 'Sell']],
   trainer: [['tree', 'Skill Tree']],
+  levels: [['levels', 'Levels']],
+  pit: [['pit', 'Tiers']],
 };
 
 export class Screens {
@@ -96,6 +101,8 @@ export class Screens {
         break;
       }
       case 'node': this.sel = d.id; this.msg = ''; break;
+      case 'enter': { const L = +d.level; this.game.closeScreen(); this.game.enterDungeonLevel(L, false, d.cq === '1'); return; }
+      case 'pittier': { const T = +d.tier; this.game.closeScreen(); this.game.enterPit(T); return; }
       case 'zoom': this.zoom = Math.max(0.45, Math.min(1.6, (this.zoom || 0.7) * (d.z === 'in' ? 1.2 : 1 / 1.2))); break;
       case 'learn': {
         const why = st.learn(d.id, this.game.renown.rankIndex);
@@ -153,6 +160,8 @@ export class Screens {
     else if (this.tab === 'tree') body = this.renderTree(this.mode === 'trainer');
     else if (this.tab === 'status') body = this.renderStatus();
     else if (this.tab === 'journal') body = this.renderJournal();
+    else if (this.tab === 'levels') body = this.renderLevels();
+    else if (this.tab === 'pit') body = this.renderPit();
     else if (this.tab === 'buy') body = this.renderBuy();
     else if (this.tab === 'sell') body = this.renderSell();
     this.root.innerHTML = `<div class="pn-box mode-${this.mode}">${head}<div class="pn-body">${body}</div>
@@ -282,6 +291,45 @@ export class Screens {
       </div>
       <div class="status-side"><div class="ladder">${ladder}</div><ul class="perks">${perks.map((p) => `<li>${p}</li>`).join('')}</ul></div>
     </div>`;
+  }
+
+  renderLevels() {
+    const g = this.game, w = g.state.world, conq = w.conquered || {};
+    const plv = g.state.progression.level;
+    const row = (L, label) => {
+      const dz = dangerFor(L, g), rec = recommendedLevel(L);
+      const story = STORY_LEVELS[L];
+      const band = BIOMES[bandFor(L)];
+      const crown = conq[L] ? '<span class="crown" title="Conquered">\u265B</span>' : '';
+      return `<div class="lv-row"><span class="lv-dot" style="color:${dz.color}" title="${dz.label}">${dz.icon}</span>
+        <span class="lv-name">${crown}${label || 'Level ' + L} <small>${esc(bandFor(L) === 'crypt' ? 'The Catacombs' : band.title)}${story ? ' \u00B7 ' + esc(g.enemyName(story)) : ''}</small></span>
+        <span class="lv-rec">rec. Lv ${rec}${plv < rec - 8 ? ' \u2620' : ''}</span>
+        <button class="focusable" data-act="enter" data-level="${L}" data-cq="0" data-key="lv${L}">Enter</button>
+        <button class="focusable cq" data-act="enter" data-level="${L}" data-cq="1" data-key="cq${L}" title="+150% HP/damage, more elites, traps, no shrines; kill everything">Conquest</button></div>`;
+    };
+    const rows = g.startableLevels().map((L) => row(L)).join('');
+    const abyss = (w.abyssBest || 0) > 30 || conq[30] ? row(31, 'The Abyss (depth 31)') : '';
+    return `<div class="levels">
+      <div class="small">Difficulty never changes per level: early levels grow easy to farm, deep ones outscale you until you level and gear up.
+        Your power: Lv ${plv}${g.state.ascension && g.state.ascension.level ? ' \u00B7 Ascension ' + g.state.ascension.level : ''}. Deepest: ${w.deepest || 0}${w.abyssBest ? ' \u00B7 Abyss best ' + w.abyssBest : ''}.
+        Conquer a level (kill every enemy in Conquest) to start at the next one.</div>
+      <div class="lv-legend"><span style="color:#70c060">\u25CF safe</span> <span style="color:#e0c050">\u25CF fair</span> <span style="color:#e05040">\u25CF dangerous</span> <span>\u2620 deadly</span> \u00B7 \u265B conquered</div>
+      ${rows}${abyss}</div>`;
+  }
+
+  renderPit() {
+    const g = this.game, w = g.state.world, best = w.pitBest || {};
+    const max = Math.max(1, w.deepest || 1);
+    const tiers = [];
+    for (let t = 1; t <= max; t++) tiers.push(t);
+    const rows = tiers.reverse().map((t) => {
+      const dz = dangerFor(t, g);
+      return `<div class="lv-row"><span class="lv-dot" style="color:${dz.color}">${dz.icon}</span>
+        <span class="lv-name">Tier ${t} <small>enemies of level ${t}+ \u00B7 loot item level ${t}+</small></span>
+        <span class="lv-rec">best wave: ${best[t] || '-'}</span>
+        <button class="focusable" data-act="pittier" data-tier="${t}" data-key="pt${t}">Fight</button></div>`;
+    }).join('');
+    return `<div class="levels"><div class="small">Waves grow harder; every 5th is elite, every 10th brings a guardian. Between waves you may leave and keep the loot. Death loses it. Tiers unlock with your deepest main-dungeon level.</div>${rows}</div>`;
   }
 
   renderJournal() {

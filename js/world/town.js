@@ -86,7 +86,7 @@ export class Town extends Area {
     }
     for (let t = -27; t <= 27; t += 9) {
       if (Math.abs(t) > 4) box(A, 'stoneDark', t, 1.6, -HALF + 1.3, 1.2, 3.2, 0.7, { worldUV: 2 });
-      box(A, 'stoneDark', -HALF + 1.3, 1.6, t, 0.7, 3.2, 1.2, { worldUV: 2 });
+      if (t !== 0) box(A, 'stoneDark', -HALF + 1.3, 1.6, t, 0.7, 3.2, 1.2, { worldUV: 2 });   // (the Pit portal stands at z 0)
       box(A, 'stoneDark', HALF - 1.3, 1.6, t, 0.7, 3.2, 1.2, { worldUV: 2 });
     }
     for (const [cx, cz] of [[-HALF, -HALF], [HALF, -HALF], [-HALF, HALF], [HALF, HALF]]) {
@@ -114,6 +114,14 @@ export class Town extends Area {
     this.portalOut = portal(A, { x: -7, z: -30.4, yaw: 0, target: 'dungeon', color: 'green', label: 'The Sunken Catacombs' });
     this.portalDepths = portal(A, { x: 7, z: -30.4, yaw: 0, target: 'depths', color: 'red', label: 'The Shifting Depths (changes every visit)' });
     for (const x of [-11, -3, 3, 11]) postTorch(A, x, -27.5);
+    // the Waystone: choose your starting depth (after a Conquest)
+    box(A, 'stoneDark', 4.8, 1.1, -24.6, 0.8, 2.2, 0.5, { worldUV: 1 });
+    box(A, 'stoneMoss', 4.8, 0.15, -24.6, 1.4, 0.3, 1.0, { worldUV: 1 });
+    interactable(A, new THREE.Vector3(4.8, 0, -24.0), 2.0, 'Touch the Waystone (choose your depth)', () => this.game.openScreen('levels'));
+    this.mapMarkers.push({ x: 4.8, z: -24.6, type: 'shrine' });
+    // the Proving Pit: a portal in the west wall
+    portal(A, { x: -31.6, z: 0.5, yaw: Math.PI / 2, target: 'pit', color: 'purple', label: 'The Proving Pit (wave arena)' });
+    this.spawns.pit = { pos: new THREE.Vector3(-27.6, 0, 0.5), yaw: -Math.PI / 2 };
     for (const s of [-1, 1]) for (const zz of [-21, -17]) {
       mesh(A, 'stoneDark', boxGeo(0.7, 1.8, 0.5, 1), trs(s * 3.3, 0.8, zz, [0.05 * s, 0.2 * s, 0.06]));
       A.collision.addCentered(s * 3.3, 0.9, zz, 0.7, 1.8, 0.6, 'prop');
@@ -195,7 +203,7 @@ export class Town extends Area {
     for (const [x, z] of [[-12, -8], [12, -8], [-12, 14], [12, 14]]) postTorch(A, x, z);
     for (const t of [-20, 0, 20]) {
       if (t !== 0) wallTorch(A, t, 3.4, -HALF + 1.0, 0);
-      wallTorch(A, -HALF + 1.0, 3.4, t, Math.PI / 2);
+      if (t !== 0) wallTorch(A, -HALF + 1.0, 3.4, t, Math.PI / 2);
       wallTorch(A, HALF - 1.0, 3.4, t, -Math.PI / 2);
     }
     // the Hearth: the great fire of the square, holding the stilled hour
