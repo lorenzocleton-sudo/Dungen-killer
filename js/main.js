@@ -12,10 +12,12 @@ import { WorldClock } from './systems/clock.js';
 import { GameState } from './systems/state.js';
 import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
+import { Dungeon } from './world/dungeon.js';
 
 // Registry of areas. New areas register a factory here.
 const AREA_FACTORIES = {
   town: (g) => new Town(g),
+  dungeon: (g) => new Dungeon(g),
 };
 export function registerArea(id, factory) { AREA_FACTORIES[id] = factory; }
 
@@ -176,6 +178,18 @@ class Game {
 
   onPortal(portal) {
     events.emit('portalUsed', { from: this.area.id, to: portal.target });
+    const leavingHostile = this.area.hostile;
+    const target = this.getArea(portal.target);
+    if (target.hostile && !leavingHostile) {
+      // entering the dungeon: a fresh RUN begins, SAVED is what you walked in with
+      this.state.startRun();
+      this.state.save();
+    } else if (leavingHostile && !target.hostile) {
+      // made it out alive: the run becomes permanent
+      const s = this.state.commitRun();
+      this.state.save();
+      if (s && (s.currency || s.items)) this.hud.feed(`Kept ${s.currency} ashes${s.items ? ' and ' + s.items + ' relic(s)' : ''}.`, '#d8c080');
+    }
     this.travelTo(portal.target, portal.spawn || 'portal');
   }
 

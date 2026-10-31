@@ -52,7 +52,7 @@ export function fire(area, x, y, z, o = {}) {
   core.material.opacity = 0.35;
   area.scene.add(core);
   const src = area.lights.add(new THREE.Vector3(x, y + 0.3, z), {
-    color: o.color ?? 0xff8a3a, intensity: o.intensity ?? 7, range: o.range ?? 11,
+    color: o.color ?? 0xff8a3a, intensity: o.intensity ?? 9, range: o.range ?? 12,
     onFlicker: (f) => { s.scale.set(size * 0.7 * (0.9 + (1 - f) * 0.8), size * (0.75 + f * 0.35), 1); },
   });
   area.addEmitter(new THREE.Vector3(x, y + size * 0.4, z), o.embers ?? 3, (a, p) => {
@@ -84,7 +84,7 @@ export function wallTorch(area, x, y, z, yaw) {
 export function postTorch(area, x, z, y0 = 0, h = 2.2) {
   box(area, 'beam', x, y0 + h / 2, z, 0.18, h, 0.18, { tag: 'prop' });
   box(area, 'ironDark', x, y0 + h + 0.06, z, 0.3, 0.14, 0.3, { collide: false, shade: null });
-  return fire(area, x, y0 + h + 0.15, z, { size: 0.5, intensity: 8 });
+  return fire(area, x, y0 + h + 0.15, z, { size: 0.5, intensity: 10 });
 }
 
 /** Iron brazier bowl with a large fire. */
@@ -97,7 +97,7 @@ export function brazier(area, x, y0, z) {
   const bowl = new THREE.CylinderGeometry(0.55, 0.3, 0.35, 8, 1, false);
   mesh(area, 'iron', bowl, trs(x, y0 + 1.05, z));
   area.collision.addCentered(x, y0 + 0.6, z, 0.9, 1.2, 0.9, 'prop');
-  return fire(area, x, y0 + 1.2, z, { size: 0.85, intensity: 11, range: 14, embers: 6 });
+  return fire(area, x, y0 + 1.2, z, { size: 0.85, intensity: 16, range: 16, embers: 6 });
 }
 
 // ------------------------------------------------------------------ portal

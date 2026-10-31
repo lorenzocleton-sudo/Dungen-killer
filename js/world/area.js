@@ -24,7 +24,7 @@ export class Area {
     this.scene.add(this.sun, this.sun.target);
     this.lights = new TorchLightPool(this.scene, 6);
     // player-carried lantern: a soft warm light that follows the camera
-    this.lantern = new THREE.PointLight(0xffa860, 0, 9, 1.4);
+    this.lantern = new THREE.PointLight(0xffa860, 0, 10, 1.1);
     this.scene.add(this.lantern);
     this.lanternIntensity = 0;
     this.glow = new ParticleSystem(this.scene, 500, true);   // embers, sparks, magic

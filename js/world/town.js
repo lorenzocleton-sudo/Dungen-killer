@@ -25,9 +25,9 @@ export const PHASES = {
   night: {
     fog: 0x07090e, near: 2, far: 30,
     sky: { top: 0x010205, horizon: 0x0a0d15, bottom: 0x040506, clouds: 0x161a22, cloudOpacity: 0.7, stars: true, orbColor: 0x6a7a9a, orbOpacity: 0.5, moon: true },
-    hemiSky: 0x2a3550, hemiGround: 0x080706, hemi: 0.32,
+    hemiSky: 0x2a3550, hemiGround: 0x080706, hemi: 0.5,
     sun: 0x7080a8, sunI: 0.28, sunPos: [-60, 90, -90],
-    torch: 1.0, lantern: 3.2, window: 0xb85a1c, mountains: 0x05060a, dust: [0.3, 0.3, 0.34],
+    torch: 1.0, lantern: 3.6, window: 0xb85a1c, mountains: 0x05060a, dust: [0.3, 0.3, 0.34],
   },
 };
 

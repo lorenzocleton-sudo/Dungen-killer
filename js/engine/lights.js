@@ -7,7 +7,7 @@ export class TorchLightPool {
   constructor(scene, count = 6) {
     this.lights = [];
     for (let i = 0; i < count; i++) {
-      const l = new THREE.PointLight(0xff9040, 0, 12, 1.6);
+      const l = new THREE.PointLight(0xff9040, 0, 12, 1.15);
       scene.add(l);
       this.lights.push(l);
     }
@@ -21,7 +21,7 @@ export class TorchLightPool {
     const s = {
       pos: pos.clone(),
       color: new THREE.Color(opts.color ?? 0xff8a3a),
-      intensity: opts.intensity ?? 7,
+      intensity: opts.intensity ?? 9,
       range: opts.range ?? 11,
       flicker: opts.flicker ?? 1,
       phase: Math.random() * 100,

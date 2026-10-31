@@ -35,7 +35,7 @@ void main(){
   c = pow(c, vec3(1.06));
   // vignette
   vec2 d = vUv - 0.5;
-  c *= 1.0 - dot(d, d) * 1.25;
+  c *= 1.0 - dot(d, d) * 0.9;
   c = mix(c, vec3(0.45, 0.02, 0.0), uFlash * 0.45);
   if (uDither > 0.5) {
     float b = bayer(gl_FragCoord.xy) - 0.5;
