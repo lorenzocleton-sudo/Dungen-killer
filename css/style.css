@@ -310,3 +310,4 @@ body.touch #btn-bag { right: calc(max(14px, env(safe-area-inset-right)) + 202px)
 #bigmap.hidden { display: none; }
 #bigmap canvas { border: 2px solid #4a3e30; image-rendering: pixelated; }
 .bm-hint { color: #8a7e68; font-size: 13px; margin-top: 6px; letter-spacing: 2px; }
+button.admin { color: #80c0ff; border-color: #2a4060; background: #101824; }

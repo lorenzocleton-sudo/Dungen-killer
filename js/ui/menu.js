@@ -19,6 +19,7 @@ export class Menu {
     $('opt-minimap').addEventListener('change', () => game.setSetting('minimap', $('opt-minimap').checked));
     $('btn-resume').addEventListener('click', () => game.closeMenu());
     $('btn-fullscreen').addEventListener('click', () => game.toggleFullscreen());
+    $('btn-admin').addEventListener('click', () => game.openAdmin());
     $('btn-reset').addEventListener('click', () => {
       if (this._confirmReset) { game.resetSave(); this._confirmReset = false; $('btn-reset').textContent = 'Reset save'; return; }
       this._confirmReset = true; $('btn-reset').textContent = 'Tap again to confirm';
