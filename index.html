@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Dungen Killer</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="touch-layer"></div>
+<div id="joy-base"></div>
+<div id="joy-knob"></div>
+
+<div id="hud">
+  <div id="hp-wrap">
+    <div id="hp-bar"><div id="hp-lag"></div><div id="hp-fill"></div></div>
+    <div id="run-info"></div>
+  </div>
+  <div id="clock">
+    <div id="clock-phase"></div>
+    <div id="clock-time"></div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="banner"><div id="banner-title"></div><div id="banner-sub"></div></div>
+  <div id="prompt"></div>
+  <div id="feed"></div>
+  <div id="hints"></div>
+  <div id="dmg-layer"></div>
+  <div id="btn-hit" class="touch-only">HIT</div>
+  <div id="btn-menu" class="touch-only">&#9776;</div>
+</div>
+
+<div id="death"><div class="death-text">YOU DIED</div><div class="death-sub"></div></div>
+
+<div id="title">
+  <div class="title-inner">
+    <div class="title-name">DUNGEN KILLER</div>
+    <div class="title-sub">a demo of ash and iron</div>
+    <div class="title-start" id="title-start">Click to begin</div>
+    <div class="title-note" id="title-note"></div>
+  </div>
+</div>
+
+<div id="menu" class="hidden">
+  <div class="menu-panel">
+    <div class="menu-tabs">
+      <button class="tab focusable" data-tab="settings">Settings</button>
+      <button class="tab focusable" data-tab="inventory">Inventory</button>
+      <button class="tab focusable" data-tab="skills">Skills</button>
+    </div>
+    <div class="menu-body">
+      <section data-page="settings">
+        <label class="row">Look sensitivity <span id="sens-val">1.0</span>
+          <input id="opt-sens" class="focusable" type="range" min="0.2" max="3" step="0.1" value="1"></label>
+        <label class="row check"><input id="opt-invert" class="focusable" type="checkbox"> Invert look Y</label>
+        <label class="row check"><input id="opt-ps1" class="focusable" type="checkbox"> PS1 mode (vertex jitter + dither)</label>
+        <div class="row buttons">
+          <button id="btn-fullscreen" class="focusable">Fullscreen</button>
+          <button id="btn-reset" class="focusable danger">Reset save</button>
+        </div>
+      </section>
+      <section data-page="inventory"></section>
+      <section data-page="skills"></section>
+    </div>
+    <button id="btn-resume" class="focusable resume">Resume</button>
+    <div class="menu-hint" id="menu-hint"></div>
+  </div>
+</div>
+
+<div id="fade"></div>
+<div id="error"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

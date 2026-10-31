@@ -1,0 +1,97 @@
+// First-person player controller: movement, collision, camera, HP.
+import * as THREE from '../../lib/three.module.min.js';
+import { CONFIG } from '../config.js';
+import { events } from '../engine/events.js';
+
+const P = CONFIG.player;
+
+export class Player {
+  constructor(camera) {
+    this.camera = camera;
+    this.pos = new THREE.Vector3();
+    this.vy = 0;
+    this.yaw = 0;
+    this.pitch = 0;
+    this.eyeY = 0;              // smoothed eye height (for stairs)
+    this.bob = 0;
+    this.maxHp = P.maxHp;
+    this.hp = this.maxHp;
+    this.dead = false;
+    this.grounded = true;
+    this.speedMul = 1;
+    this.shake = 0;
+    this.velocity = new THREE.Vector3();
+    this.forward = new THREE.Vector3();
+    this.invuln = 0;
+  }
+
+  place(x, y, z, yaw = 0) {
+    this.pos.set(x, y, z);
+    this.vy = 0;
+    this.yaw = yaw;
+    this.pitch = 0;
+    this.eyeY = y + P.eyeHeight;
+    this.velocity.set(0, 0, 0);
+  }
+
+  damage(amount, sourcePos) {
+    if (this.dead || this.invuln > 0) return 0;
+    this.hp = Math.max(0, this.hp - amount);
+    this.shake = Math.min(1, this.shake + 0.5 + amount / 40);
+    events.emit('playerDamaged', { amount, hp: this.hp, sourcePos });
+    if (this.hp <= 0) { this.dead = true; events.emit('playerDied', {}); }
+    return amount;
+  }
+
+  heal(amount) { this.hp = Math.min(this.maxHp, this.hp + amount); }
+
+  update(dt, input, world) {
+    const look = this.dead ? { x: 0, y: 0 } : input.look;
+    this.yaw -= look.x;
+    this.pitch = Math.max(-CONFIG.look.pitchLimit, Math.min(CONFIG.look.pitchLimit, this.pitch - look.y));
+    if (this.invuln > 0) this.invuln -= dt;
+
+    // desired horizontal velocity, camera-relative
+    const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
+    const mx = this.dead ? 0 : input.move.x, my = this.dead ? 0 : input.move.y;
+    const speed = P.speed * this.speedMul;
+    const tx = (mx * cos - my * sin) * speed;
+    const tz = (-mx * sin - my * cos) * speed;
+    const acc = this.grounded ? 14 : 4;
+    const k = Math.min(1, acc * dt);
+    this.velocity.x += (tx - this.velocity.x) * k;
+    this.velocity.z += (tz - this.velocity.z) * k;
+
+    const p = { x: this.pos.x + this.velocity.x * dt, z: this.pos.z + this.velocity.z * dt };
+    world.resolve(p, P.radius, this.pos.y, P.height, P.step);
+    this.pos.x = p.x; this.pos.z = p.z;
+
+    // ground / stairs / gravity
+    const g = world.groundHeight(this.pos.x, this.pos.z, P.radius * 0.55, this.pos.y, P.step);
+    if (g > this.pos.y - 0.001) { this.pos.y = g; this.vy = 0; this.grounded = true; }
+    else if (this.grounded && g > this.pos.y - P.step && this.vy <= 0) { this.pos.y = g; this.vy = 0; } // stick to stairs going down
+    else {
+      this.grounded = false;
+      this.vy -= P.gravity * dt;
+      this.pos.y += this.vy * dt;
+      if (this.pos.y <= g) { this.pos.y = g; this.vy = 0; this.grounded = true; }
+    }
+    if (this.pos.y < -60) events.emit('playerFellOut', {});
+
+    // camera
+    const hs = Math.hypot(this.velocity.x, this.velocity.z);
+    this.bob += dt * hs * 2.1;
+    const bobAmt = Math.min(1, hs / P.speed) * 0.045;
+    const targetEye = this.pos.y + (this.dead ? 0.35 : P.eyeHeight);
+    this.eyeY += (targetEye - this.eyeY) * Math.min(1, dt * (this.dead ? 3 : 14));
+    this.shake = Math.max(0, this.shake - dt * 2.5);
+    const sh = this.shake * this.shake * 0.08;
+    this.camera.position.set(
+      this.pos.x + (Math.random() - 0.5) * sh,
+      this.eyeY + Math.sin(this.bob * 2) * bobAmt + (Math.random() - 0.5) * sh,
+      this.pos.z + (Math.random() - 0.5) * sh);
+    this.camera.rotation.set(this.pitch, this.yaw, this.dead ? 0.5 : Math.sin(this.bob) * bobAmt * 0.3, 'YXZ');
+    this.forward.set(-sin, 0, -cos);
+    this.moving = hs > 0.5;
+  }
+}
