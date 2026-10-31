@@ -1,6 +1,5 @@
 // Pause menu: Settings / Inventory / Skills tabs. Works with mouse, touch,
 // keyboard arrows and gamepad d-pad (focus navigation).
-import { SKILL_TREE, xpForLevel } from '../systems/skills.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -55,36 +54,6 @@ export class Menu {
     this.tab = tab;
     for (const t of this.root.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === tab);
     for (const s of this.root.querySelectorAll('section')) s.classList.toggle('active', s.dataset.page === tab);
-    if (tab === 'inventory') this.renderInventory();
-    if (tab === 'skills') this.renderSkills();
-  }
-
-  renderInventory() {
-    const st = this.game.state;
-    const list = (inv) => inv.items.length
-      ? '<ul>' + inv.items.map((i) => `<li>${i.name}${i.qty > 1 ? ' ×' + i.qty : ''}</li>`).join('') + '</ul>'
-      : '<div class="empty">Nothing.</div>';
-    const gear = (inv) => Object.keys(inv.gear).length
-      ? Object.entries(inv.gear).map(([k, v]) => `${k}: ${v.name}`).join(', ') : '<span class="empty">none</span>';
-    this.root.querySelector('[data-page=inventory]').innerHTML = `<div class="inv">
-      <h4>Kept (saved)</h4>
-      <div class="small">Ashes: ${st.saved.currency} · Gear: ${gear(st.saved)}</div>${list(st.saved)}
-      <h4>This run ${st.inRun ? '' : '(not in the dungeon)'}</h4>
-      <div class="small">Ashes: ${st.run.currency} · Gear: ${gear(st.run)}</div>${list(st.run)}
-      <div class="small">Die and the run is lost. Walk back through the portal to keep it.</div>
-    </div>`;
-  }
-
-  renderSkills() {
-    const p = this.game.state.progression;
-    this.root.querySelector('[data-page=skills]').innerHTML = `<div class="skills">
-      <div class="small">Level ${p.level} · XP ${p.xp}/${xpForLevel(p.level)} · Unspent points: ${p.skillPoints}</div>
-      <div class="branches">${SKILL_TREE.branches.map((b) => `
-        <div class="branch"><h4>${b.name}</h4><div class="small">${b.desc}</div>
-          ${b.nodes.map((n) => `<div class="node">${n.name}<br>${n.desc}</div>`).join('')}
-        </div>`).join('')}</div>
-      <div class="small" style="margin-top:8px">The paths are sealed for now. Your choices here will shape what you become.</div>
-    </div>`;
   }
 
   _focusables() {

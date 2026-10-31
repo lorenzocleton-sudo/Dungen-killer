@@ -448,6 +448,7 @@ const ALPHA_GENERATORS = {
   glow: () => glow(202, [255, 255, 255], [255, 255, 255], false),
   portalGreen: () => portalSwirl(203, [10, 40, 30], [120, 220, 160]),
   portalBlue: () => portalSwirl(204, [10, 22, 44], [130, 180, 230]),
+  portalRed: () => portalSwirl(206, [40, 8, 10], [230, 90, 60]),
   clouds: () => clouds(205),
 };
 

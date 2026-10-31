@@ -7,7 +7,8 @@
 import * as THREE from '../../lib/three.module.min.js';
 import { Area } from './area.js';
 import { boxGeo, trs } from '../engine/geometry.js';
-import { box, mesh, wallTorch, brazier, portal } from './props.js';
+import { box, mesh, wallTorch, brazier, portal, chest } from './props.js';
+import { generateDungeon } from './dungeonGen.js';
 
 export const CELL = 2.5;
 const LEVEL_DROP = 1.5;
@@ -62,15 +63,22 @@ export const DUNGEON_SPAWNS = [
 
 const STAIR_DIRS = { v: [0, 1], '^': [0, -1], '>': [1, 0], '<': [-1, 0] };
 
+const FIXED_BRAZIERS = [[11, 3], [15, 3], [12, 18], [16, 18], [12, 22], [16, 22], [12, 30], [16, 30]];
+
 export class Dungeon extends Area {
-  constructor(game) {
-    super(game, 'dungeon', 'The Sunken Catacombs');
+  constructor(game, id = 'dungeon', name = 'The Sunken Catacombs') {
+    super(game, id, name);
     this.hostile = true;
     this.map = DUNGEON_MAP;
+    this.braziers = FIXED_BRAZIERS;
+    this.spawnList = DUNGEON_SPAWNS;
+    this.fixedDecor = true;
+    this.returnSpawn = 'portal';
   }
 
-  /** Parse the ASCII map into cell records. */
+  /** Parse the ASCII map (or take generated cells) into cell records. */
   parse() {
+    if (this.cells) return this._finalize(this.cells, this.cells.length, this.cells[0].length);
     const rows = this.map.length, cols = Math.max(...this.map.map((r) => r.length));
     this.rows = rows; this.cols = cols;
     const g = [];
@@ -96,6 +104,12 @@ export class Dungeon extends Area {
       const hi = at(r - s.dir[1], c - s.dir[0]);
       s.level = hi.level ?? 0;
     }
+    this._finalize(g, rows, cols);
+  }
+
+  _finalize(g, rows, cols) {
+    this.rows = rows; this.cols = cols;
+    const at = (r, c) => (g[r] && g[r][c]) || { type: 'wall' };
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const s = g[r][c];
       if (s.type === 'floor') {
@@ -192,13 +206,18 @@ export class Dungeon extends Area {
     this._decorate();
 
     // portal back to town, against the north wall of the entrance room
-    const pr = this.map.findIndex((row) => row.includes('P'));
-    const pc = this.map[pr].indexOf('P');
-    portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', color: 'blue', label: 'Return to Ashen Hollow' });
-    this.spawns.portal = { pos: new THREE.Vector3((pc + 0.5) * CELL, 0, (pr + 3.2) * CELL), yaw: Math.PI };
+    let pr = 0, pc = 0;
+    for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (this.grid[r][c].portal) { pr = r; pc = c; }
+    portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', spawn: this.returnSpawn, color: 'blue', label: 'Return to Ashen Hollow' });
+    this.spawns.portal = { pos: new THREE.Vector3((pc + 0.5) * CELL, 0, (pr + 2.7) * CELL), yaw: Math.PI };
+    if (this.layout && this.layout.exit) {
+      // face the way out of the entrance room
+      const [ec, er] = this.layout.exit, sp = this.spawns.portal.pos;
+      this.spawns.portal.yaw = Math.atan2(-((ec + 0.5) * CELL - sp.x), -((er + 0.5) * CELL - sp.z));
+    }
     this.spawns.start = this.spawns.portal;
 
-    this.enemySpawns = DUNGEON_SPAWNS.map(([c, r, type]) => ({ type, pos: this.cellCenter(c, r) }));
+    this.enemySpawns = this.spawnList.map(([c, r, type]) => ({ type, pos: this.cellCenter(c, r) }));
     this.finish();
   }
 
@@ -220,13 +239,14 @@ export class Dungeon extends Area {
     }
     // braziers
     const cc = (c, r) => [(c + 0.5) * CELL, (r + 0.5) * CELL];
-    for (const [c, r] of [[11, 3], [15, 3], [12, 18], [16, 18], [12, 22], [16, 22], [12, 30], [16, 30]]) {
+    for (const [c, r] of this.braziers) {
       const [x, z] = cc(c, r);
       brazier(this, x, this.at(r, c).floorY, z);
     }
   }
 
   _decorate() {
+    if (!this.fixedDecor) { this._decorateRandom(); return; }
     const A = this;
     let seed = 1234;
     const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -276,10 +296,44 @@ export class Dungeon extends Area {
       box(A, 'stone', x, y + 1.05, z + 0.6, 2.9, 0.12, 1.4, { worldUV: 1, collide: false, shade: null });
       mesh(A, 'bone', boxGeo(0.25, 0.25, 0.3, 0.5), trs(x - 0.6, y + 1.24, z + 0.6, 0.3), { shade: null });
     }
+    // a chest beside the altar, for whoever survives the knight
+    { const [x, z, y] = cc(12, 30); chest(A, x, y, z, Math.PI / 2, () => this.game.loot.roll('chest', new THREE.Vector3(x + 1, y, z), 3)); }
     // entrance room: old banners (rotten cloth)
     for (const c of [11, 15]) {
       const [x, , y] = cc(c, 1);
       box(A, 'clothRed', x, y + 2.3, 1 * CELL + 0.05, 1.0, 1.9, 0.04, { collide: false, shade: () => 0.7 });
+    }
+  }
+
+  /** Decoration for generated layouts: bones, rubble, sarcophagi, a chest. */
+  _decorateRandom() {
+    const A = this;
+    let seed = this.layout.seed || 77;
+    const rnd = () => { seed = (seed * 16807 + 11) % 2147483647; return seed / 2147483647; };
+    const cc = (c, r) => [(c + 0.5) * CELL, (r + 0.5) * CELL, this.at(r, c).floorY];
+    for (const [c, r, kind] of this.layout.decor) {
+      const [x, z, y] = cc(c, r);
+      if (kind === 'sarcophagus') {
+        const rot = rnd() < 0.5 ? 0 : Math.PI / 2;
+        box(A, 'stoneDark', x, y + 0.45, z, 1.1, 0.9, 2.1, { worldUV: 1, rot });
+        box(A, 'stone', x, y + 0.97, z, 1.25, 0.16, 2.25, { worldUV: 1, collide: false, rot: rot + (rnd() - 0.5) * 0.3, shade: null });
+      } else if (kind === 'rubble') {
+        for (let i = 0; i < 6; i++) {
+          const s = 0.2 + rnd() * 0.35;
+          mesh(A, 'stoneDark', boxGeo(s, s * 0.7, s, 0.6), trs(x + (rnd() - 0.5) * 1.6, y + s * 0.3, z + (rnd() - 0.5) * 1.6, [rnd(), rnd() * 6, rnd()]));
+        }
+      } else {
+        for (let i = 0; i < 8; i++) {
+          const geo = boxGeo(0.06 + rnd() * 0.05, 0.06, 0.4 + rnd() * 0.3, 0.5);
+          mesh(A, 'bone', geo, trs(x + (rnd() - 0.5) * 1.2, y + 0.04 + rnd() * 0.15, z + (rnd() - 0.5) * 1.2, [rnd() * 0.4, rnd() * 6, rnd() * 0.4]), { shade: null });
+        }
+        mesh(A, 'bone', boxGeo(0.22, 0.22, 0.26, 0.5), trs(x + (rnd() - 0.5) * 0.6, y + 0.13, z + (rnd() - 0.5) * 0.6, rnd() * 6), { shade: null });
+      }
+    }
+    if (this.layout.chest) {
+      const [c, r] = this.layout.chest;
+      const [x, z, y] = cc(c, r);
+      chest(A, x, y, z - CELL / 2 + 0.7, 0, () => this.game.loot.roll('chest', new THREE.Vector3(x, y, z), 3));
     }
   }
 
@@ -331,6 +385,10 @@ export class Dungeon extends Area {
     return out.set((best[0] + 0.5) * CELL, 0, (best[1] + 0.5) * CELL);
   }
 
+  dispose() {
+    this.scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  }
+
   onEnter() {
     this._flowC = null;
     if (this.game.spawnEnemies) this.game.spawnEnemies(this);
@@ -343,5 +401,19 @@ export class Dungeon extends Area {
   update(dt, player) {
     this.updateFlow(player.pos);
     super.update(dt, player);
+  }
+}
+
+/** A freshly generated layout every visit. */
+export class RandomDungeon extends Dungeon {
+  constructor(game) {
+    super(game, 'depths', 'The Shifting Depths');
+    this.transient = true;
+    this.returnSpawn = 'portal_depths';
+    this.layout = generateDungeon((Math.random() * 1e9) | 0);
+    this.cells = this.layout.cells;
+    this.braziers = this.layout.braziers;
+    this.spawnList = this.layout.spawns;
+    this.fixedDecor = false;
   }
 }

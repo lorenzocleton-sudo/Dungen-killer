@@ -12,7 +12,8 @@ import { WorldClock } from './systems/clock.js';
 import { GameState } from './systems/state.js';
 import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
-import { Dungeon } from './world/dungeon.js';
+import { Dungeon, RandomDungeon } from './world/dungeon.js';
+import { Screens } from './ui/screens.js';
 import { EnemyManager } from './entities/enemyManager.js';
 import { CombatSystem } from './systems/combat.js';
 import { LootSystem } from './systems/loot.js';
@@ -21,6 +22,7 @@ import { LootSystem } from './systems/loot.js';
 const AREA_FACTORIES = {
   town: (g) => new Town(g),
   dungeon: (g) => new Dungeon(g),
+  depths: (g) => new RandomDungeon(g),
 };
 export function registerArea(id, factory) { AREA_FACTORIES[id] = factory; }
 
@@ -36,6 +38,7 @@ class Game {
     this.input = new Input(this.canvas);
     this.hud = new HUD();
     this.menu = new Menu(this);
+    this.screens = new Screens(this);
     this.player = new Player(this.camera);
     this.overlayScene.add(this.camera);
 
@@ -59,6 +62,10 @@ class Game {
     this.deathTimer = 0;
     events.on('playerDied', () => this.onPlayerDeath());
     events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
+
+    this.combat.refreshStats();
+    this.player.hp = this.player.maxHp;
+    events.on('inventoryChanged', () => { if (this.screens.open) this.screens.render(); });
 
     this.input.onDeviceChange = (d) => this.hud.setDevice(d);
     this.hud.setDevice(this.input.device);
@@ -123,6 +130,27 @@ class Game {
     else this.requestFullscreen();
   }
 
+  /** Inventory / shop / trainer panels (pause the game while open). */
+  openScreen(mode, tab) {
+    if (!this.started || this.player.dead) return;
+    if (this.menu.open) this.closeMenu();
+    this.screens.show(mode, tab);
+    this.input.enabled = false;
+    this.input.resetTouch();
+    this.input.releaseLock();
+    this.hud.interactPrompt('');
+  }
+
+  closeScreen() {
+    if (!this.screens.open) return;
+    this._menuToggleAt = performance.now();
+    this.screens.hide();
+    this.input.enabled = true;
+    this.input.flush();
+    this.input.requestLock();
+    this.state.save();
+  }
+
   openMenu() {
     if (this.menu.open || !this.started) return;
     this._menuToggleAt = performance.now();
@@ -145,6 +173,7 @@ class Game {
     GameState.wipe();
     this.state = new GameState();
     this.clock = new WorldClock(0);
+    this.combat.refreshStats();
     this.player.hp = this.player.maxHp;
     this.closeMenu();
     this.travelTo('town', 'start', true);
@@ -170,6 +199,7 @@ class Game {
     const doSwap = () => {
       const prev = this.area;
       if (prev) prev.onExit();
+      if (prev && prev.transient) { prev.dispose(); delete this.areas[prev.id]; }
       this.area = this.getArea(id);
       const sp = this.area.spawns[spawnName] || this.area.spawns.start || Object.values(this.area.spawns)[0];
       this.player.place(sp.pos.x, sp.pos.y, sp.pos.z, sp.yaw);
@@ -211,7 +241,7 @@ class Game {
   /** Death rule: RUN is wiped, SAVED + progression survive, wake in town. */
   onPlayerDeath() {
     const run = this.state.run;
-    const nItems = run.items.reduce((a, i) => a + i.qty, 0) + Object.keys(run.gear).length;
+    const nItems = run.items.reduce((a, i) => a + i.qty, 0);
     const parts = [];
     if (run.currency) parts.push(`${run.currency} ashes`);
     if (nItems) parts.push(`${nItems} item${nItems > 1 ? 's' : ''}`);
@@ -267,6 +297,12 @@ class Game {
       return;
     }
 
+    if (this.screens.open) {
+      this.screens.handleInput(input);
+      input.flush();
+      this.hud.update(dt, this.camera);
+      return; // paused
+    }
     // menu toggle (debounced: Esc can arrive as both keydown + lock loss)
     if (input.consume('menu') && performance.now() - (this._menuToggleAt || 0) > 250) {
       if (this.menu.open) this.closeMenu(); else this.openMenu();
@@ -276,6 +312,11 @@ class Game {
       input.flush();
       this.hud.update(dt, this.camera);
       return; // paused
+    }
+    if (input.consume('inventory') && !this.player.dead && !this.transitioning) {
+      this.openScreen('inventory');
+      input.flush();
+      return;
     }
 
     const area = this.area;
@@ -287,10 +328,24 @@ class Game {
     for (const s of this.systems) s.update(dt, this);
     area.update(dt, this.player);
 
-    // portals
+    // interactables (shop, trainer, chests) take priority over portal labels
+    let near = null, nd = Infinity;
+    for (const it of area.interactables) {
+      if (!it.enabled) continue;
+      const d = Math.hypot(it.pos.x - this.player.pos.x, it.pos.z - this.player.pos.z);
+      if (d < it.radius && d < nd && Math.abs(it.pos.y - this.player.pos.y) < 2) { near = it; nd = d; }
+    }
+    if (near && !this.player.dead && !this.transitioning) {
+      this.hud.interactPrompt(near.label, input.device);
+      if (input.consume('interact')) near.onUse();
+    } else {
+      this.hud.interactPrompt('');
+      // portals
+      const np = area.nearestPortal(this.player);
+      this.hud.prompt(np && np.dist < 4.5 && !this.transitioning ? np.portal.label : '');
+    }
     if (this.portalCooldown > 0) this.portalCooldown -= dt;
-    const np = area.nearestPortal(this.player);
-    this.hud.prompt(np && np.dist < 4.5 && !this.transitioning ? np.portal.label : '');
+    this.hud.setSprint(this.player.sprinting);
     if (!this.transitioning && this.portalCooldown <= 0 && !this.player.dead) {
       const p = area.checkPortals(this.player);
       if (p) this.onPortal(p);
@@ -307,10 +362,11 @@ class Game {
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.setClock(this.clock, area.hostile);
     const st = this.state;
-    const runItems = st.run.items.reduce((a, i) => a + i.qty, 0) + Object.keys(st.run.gear).length;
-    this.hud.setRunInfo(st.inRun
+    const runItems = st.run.items.reduce((a, i) => a + i.qty, 0);
+    const flasks = st.count('ashen_flask');
+    this.hud.setRunInfo((st.inRun
       ? `Run: ${st.run.currency} ashes${runItems ? ' · ' + runItems + ' item' + (runItems > 1 ? 's' : '') : ''}  ·  Kept: ${st.saved.currency}`
-      : `Ashes: ${st.saved.currency}  ·  Lv ${st.progression.level}`);
+      : `Ashes: ${st.saved.currency}  ·  Lv ${st.progression.level}${st.progression.skillPoints ? ' (' + st.progression.skillPoints + ' pt)' : ''}`) + `  ·  Flasks: ${flasks}`);
     this.hud.update(dt, this.camera);
     input.flush();
   }

@@ -6,9 +6,9 @@ import { fmtTime } from '../systems/clock.js';
 const $ = (id) => document.getElementById(id);
 
 const HINTS = {
-  kbm: 'WASD move  ·  Mouse look  ·  Click / Space hit  ·  Esc menu',
-  touch: 'Left thumb: move  ·  Swipe right side: look  ·  HIT to strike',
-  gamepad: 'L-stick move  ·  R-stick look  ·  A / RT hit  ·  Start menu',
+  kbm: 'WASD move · Shift / double-tap W sprint · Click hit · E use · R flask · I inventory · Esc menu',
+  touch: 'Left thumb: move · Swipe right: look · HIT strike · RUN toggles sprint · \u25C8 inventory',
+  gamepad: 'L-stick move (click L3: sprint on/off) · R-stick look · A/RT hit · Y use · LB flask · Back inventory',
 };
 
 export class HUD {
@@ -52,6 +52,17 @@ export class HUD {
     this.el.time.textContent = inDungeon
       ? `Dungeon ${fmtTime(clock.time)}  ·  flips in ${fmtTime(clock.untilFlip)}`
       : `Time stands still  ·  ${fmtTime(clock.time)}`;
+  }
+
+  setSprint(on) { document.getElementById('sprint-ind').classList.toggle('show', on); }
+
+  /** Context prompt; on touch the USE button doubles as the action. */
+  interactPrompt(text, device) {
+    const btn = document.getElementById('btn-use');
+    btn.classList.toggle('show', !!text);
+    if (text) btn.textContent = text.replace(/^\[[^\]]*\]\s*/, '');
+    const key = device === 'gamepad' ? '[Y] ' : device === 'kbm' ? '[E] ' : '';
+    this.prompt(text ? key + text : '');
   }
 
   setRunInfo(text) { if (this.el.run.textContent !== text) this.el.run.textContent = text; }

@@ -62,6 +62,32 @@ export class Enemy {
     }
   }
 
+  /** Set on fire: damage over time (refreshes, keeps the stronger burn). */
+  ignite(dps, duration) {
+    if (this.dead) return;
+    this.burnDps = Math.max(this.burnDps || 0, dps);
+    this.burnT = Math.max(this.burnT || 0, duration);
+    this.burnTick = this.burnTick || 0.5;
+  }
+
+  _updateBurn(dt) {
+    if (!(this.burnT > 0) || this.dead) return;
+    this.burnT -= dt;
+    this.burnTick -= dt;
+    if (Math.random() < dt * 25) {
+      this.area.glow.emit(this.pos.x + (Math.random() - 0.5) * 0.5, this.pos.y + Math.random() * this.def.height, this.pos.z + (Math.random() - 0.5) * 0.5,
+        0, 1.2, 0, 0.5, [1, 0.45, 0.1], 0.05, 0, 0);
+    }
+    if (this.burnTick <= 0) {
+      this.burnTick = 0.5;
+      const dmg = Math.max(1, Math.round(this.burnDps * 0.5));
+      this.hp -= dmg;
+      events.emit('enemyDot', { enemy: this, amount: dmg });
+      if (this.hp <= 0) this.die();
+    }
+    if (this.burnT <= 0) this.burnDps = 0;
+  }
+
   die() {
     this.dead = true;
     this.state = 'dead';
@@ -80,6 +106,7 @@ export class Enemy {
     if (this.flash > 0) { this.flash -= dt; this.setFlash(Math.max(0, this.flash) / 0.14); }
     this.poiseDmg = Math.max(0, this.poiseDmg - dt * 8);
 
+    this._updateBurn(dt);
     if (this.dead) { this._updateDeath(dt); return; }
 
     const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;

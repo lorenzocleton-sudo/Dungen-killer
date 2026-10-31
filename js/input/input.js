@@ -30,6 +30,8 @@ export class Input {
     this.padIndex = -1;
     this.onDeviceChange = null;
     this.pointerLocked = false;
+    this.sprint = false;
+    this.sprintToggle = false;
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     this.device = ('ontouchstart' in window && coarse) ? 'touch' : 'kbm';
 
@@ -61,7 +63,17 @@ export class Input {
       this.keys.add(e.code);
       switch (e.code) {
         case 'Space': case 'KeyF': case 'KeyJ': this.trigger('hit'); break;
-        case 'Escape': case 'KeyP': case 'Tab': this.trigger('menu'); e.preventDefault(); break;
+        case 'Escape': case 'KeyP': this.trigger('menu'); e.preventDefault(); break;
+        case 'KeyI': case 'Tab': case 'KeyB': this.trigger('inventory'); e.preventDefault(); break;
+        case 'KeyE': this.trigger('interact'); break;
+        case 'KeyR': this.trigger('flask'); break;
+        case 'KeyW': case 'KeyZ': {
+          // double-tap W = sprint until W is released
+          const now = performance.now();
+          if (now - (this._lastW || 0) < 320) this.wSprint = true;
+          this._lastW = now;
+          break;
+        }
         case 'ArrowUp': this.trigger('nav_up'); break;
         case 'ArrowDown': this.trigger('nav_down'); break;
         case 'ArrowLeft': this.trigger('nav_left'); break;
@@ -70,7 +82,10 @@ export class Input {
       }
       if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      if (e.code === 'KeyW' || e.code === 'KeyZ') this.wSprint = false;
+    });
     window.addEventListener('blur', () => this.keys.clear());
   }
 
@@ -178,6 +193,10 @@ export class Input {
     };
     bindBtn('btn-hit', 'hit');
     bindBtn('btn-menu', 'menu');
+    bindBtn('btn-bag', 'inventory');
+    bindBtn('btn-use', 'interact');
+    bindBtn('btn-flask', 'flask');
+    bindBtn('btn-run', 'sprint_toggle');
   }
 
   _drawJoy() {
@@ -208,8 +227,14 @@ export class Input {
     let [lx, ly] = deadzone(pad.axes[2] || 0, pad.axes[3] || 0);
     let any = Math.abs(mx) + Math.abs(my) + Math.abs(lx) + Math.abs(ly) > 0;
     if (edge(0) || edge(2) || edge(5) || edge(7)) this.trigger('hit');
-    if (edge(9) || edge(8)) this.trigger('menu');
-    if (edge(1)) this.trigger('nav_back');
+    if (edge(9)) this.trigger('menu');
+    if (edge(8)) this.trigger('inventory');
+    if (edge(3)) this.trigger('interact');
+    if (edge(4)) this.trigger('flask');
+    if (edge(10)) this.trigger('sprint_toggle');   // L3 click toggles sprint
+    if (edge(6)) this.trigger('tab_prev');
+    if (edge(5) || edge(7)) this.trigger('tab_next');
+    if (edge(1)) { this.trigger('nav_back'); this.trigger('cancel'); }
     if (edge(0)) this.trigger('nav_ok');
     if (edge(12)) this.trigger('nav_up');
     if (edge(13)) this.trigger('nav_down');
@@ -248,6 +273,12 @@ export class Input {
     this.look.x = (this.mouseDX * CONFIG.look.mouse + this.touchLookDX * tScale + gp.lx * CONFIG.look.gamepad * dt) * sens;
     this.look.y = (this.mouseDY * CONFIG.look.mouse + this.touchLookDY * tScale + gp.ly * CONFIG.look.gamepad * dt) * sens * inv;
     this.mouseDX = this.mouseDY = this.touchLookDX = this.touchLookDY = 0;
+
+    // sprint: Shift held, double-tap W, or the gamepad/touch toggle
+    if (this.actions.has('sprint_toggle')) { this.actions.delete('sprint_toggle'); this.sprintToggle = !this.sprintToggle; }
+    this.sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || !!this.wSprint || !!this.sprintToggle;
+    const runBtn = document.getElementById('btn-run');
+    if (runBtn) runBtn.classList.toggle('on', !!this.sprintToggle);
 
     if (!this.enabled) { this.move.x = this.move.y = 0; this.look.x = this.look.y = 0; }
   }

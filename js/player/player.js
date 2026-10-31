@@ -23,6 +23,16 @@ export class Player {
     this.velocity = new THREE.Vector3();
     this.forward = new THREE.Vector3();
     this.invuln = 0;
+    this.stats = null;          // derived stats (see systems/stats.js)
+    this.sprinting = false;
+    this.healOverTime = 0;
+  }
+
+  applyStats(s) {
+    const ratio = this.maxHp ? this.hp / this.maxHp : 1;
+    this.stats = s;
+    this.maxHp = s.maxHp;
+    this.hp = Math.min(this.maxHp, Math.max(1, Math.round(ratio * this.maxHp)));
   }
 
   place(x, y, z, yaw = 0) {
@@ -36,6 +46,7 @@ export class Player {
 
   damage(amount, sourcePos) {
     if (this.dead || this.invuln > 0) return 0;
+    if (this.stats) amount = Math.max(1, Math.round(amount * (1 - this.stats.defense / 100)));
     this.hp = Math.max(0, this.hp - amount);
     this.shake = Math.min(1, this.shake + 0.5 + amount / 40);
     events.emit('playerDamaged', { amount, hp: this.hp, sourcePos });
@@ -50,11 +61,17 @@ export class Player {
     this.yaw -= look.x;
     this.pitch = Math.max(-CONFIG.look.pitchLimit, Math.min(CONFIG.look.pitchLimit, this.pitch - look.y));
     if (this.invuln > 0) this.invuln -= dt;
+    if (!this.dead && this.stats) {
+      if (this.stats.regen) this.heal(this.stats.regen * dt);
+      if (this.healOverTime > 0) { const h = Math.min(this.healOverTime, dt * 60); this.heal(h); this.healOverTime -= h; }
+    }
 
     // desired horizontal velocity, camera-relative
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const mx = this.dead ? 0 : input.move.x, my = this.dead ? 0 : input.move.y;
-    const speed = P.speed * this.speedMul;
+    const st = this.stats || { speedPct: 0, sprintPct: 0 };
+    this.sprinting = !!input.sprint && (Math.abs(mx) + Math.abs(my) > 0.1);
+    const speed = P.speed * this.speedMul * (1 + st.speedPct / 100) * (this.sprinting ? 2 * (1 + st.sprintPct / 100) : 1);
     const tx = (mx * cos - my * sin) * speed;
     const tz = (-mx * sin - my * cos) * speed;
     const acc = this.grounded ? 14 : 4;
@@ -62,8 +79,14 @@ export class Player {
     this.velocity.x += (tx - this.velocity.x) * k;
     this.velocity.z += (tz - this.velocity.z) * k;
 
-    const p = { x: this.pos.x + this.velocity.x * dt, z: this.pos.z + this.velocity.z * dt };
-    world.resolve(p, P.radius, this.pos.y, P.height, P.step);
+    // sub-step fast movement so sprinting can't tunnel through thin walls
+    const dist = Math.hypot(this.velocity.x, this.velocity.z) * dt;
+    const n = Math.max(1, Math.ceil(dist / 0.15));
+    const p = { x: this.pos.x, z: this.pos.z };
+    for (let i = 0; i < n; i++) {
+      p.x += this.velocity.x * dt / n; p.z += this.velocity.z * dt / n;
+      world.resolve(p, P.radius, this.pos.y, P.height, P.step);
+    }
     this.pos.x = p.x; this.pos.z = p.z;
 
     // ground / stairs / gravity
@@ -81,7 +104,7 @@ export class Player {
     // camera
     const hs = Math.hypot(this.velocity.x, this.velocity.z);
     this.bob += dt * hs * 2.1;
-    const bobAmt = Math.min(1, hs / P.speed) * 0.045;
+    const bobAmt = Math.min(1.4, hs / P.speed) * 0.045;
     const targetEye = this.pos.y + (this.dead ? 0.35 : P.eyeHeight);
     this.eyeY += (targetEye - this.eyeY) * Math.min(1, dt * (this.dead ? 3 : 14));
     this.shake = Math.max(0, this.shake - dt * 2.5);

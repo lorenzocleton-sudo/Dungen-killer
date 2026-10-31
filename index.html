@@ -33,6 +33,11 @@
   <div id="dmg-layer"></div>
   <div id="btn-hit" class="touch-only">HIT</div>
   <div id="btn-menu" class="touch-only">&#9776;</div>
+  <div id="btn-bag" class="touch-only">&#9672;</div>
+  <div id="btn-flask" class="touch-only">FLASK</div>
+  <div id="btn-run" class="touch-only">RUN</div>
+  <div id="btn-use" class="touch-only">USE</div>
+  <div id="sprint-ind">SPRINTING</div>
 </div>
 
 <div id="death"><div class="death-text">YOU DIED</div><div class="death-sub"></div></div>
@@ -50,8 +55,6 @@
   <div class="menu-panel">
     <div class="menu-tabs">
       <button class="tab focusable" data-tab="settings">Settings</button>
-      <button class="tab focusable" data-tab="inventory">Inventory</button>
-      <button class="tab focusable" data-tab="skills">Skills</button>
     </div>
     <div class="menu-body">
       <section data-page="settings">
@@ -64,13 +67,13 @@
           <button id="btn-reset" class="focusable danger">Reset save</button>
         </div>
       </section>
-      <section data-page="inventory"></section>
-      <section data-page="skills"></section>
     </div>
     <button id="btn-resume" class="focusable resume">Resume</button>
     <div class="menu-hint" id="menu-hint"></div>
   </div>
 </div>
+
+<div id="panel" class="hidden"></div>
 
 <div id="fade"></div>
 <div id="error"></div>

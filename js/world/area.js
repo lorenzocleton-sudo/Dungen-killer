@@ -34,6 +34,7 @@ export class Area {
     this.animated = [];   // objects with update(dt, t)
     this.enemies = [];
     this.pickups = [];
+    this.interactables = []; // { pos, radius, label, onUse, enabled }
     this.spawns = {};     // named spawn points: { pos, yaw }
     this.time = 0;
     this.dustTimer = 0;
