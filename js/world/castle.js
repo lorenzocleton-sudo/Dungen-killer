@@ -13,6 +13,7 @@ import { boxGeo, trs } from '../engine/geometry.js';
 import { litMaterial, basicMaterial } from '../engine/materials.js';
 import { Sky } from './sky.js';
 import { PHASES } from './town.js';
+import { KING_LINES, NPC_LINES, pick } from '../../data/lore.js';
 
 const W = 40, H = 34;
 // [char, col, row, w, h, name]  levels: T/u = up one storey, d/D = down one
@@ -78,7 +79,7 @@ export class Castle extends Dungeon {
     this.phase = null;
     // way back to town: gate on the courtyard's south wall
     const gp = this.cc(20, 27);
-    portal(A, { x: gp.x, z: 28 * CELL - 0.9, y: 0, yaw: Math.PI, target: 'town', spawn: 'castle', color: 'blue', label: 'Return to Ashen Hollow' });
+    portal(A, { x: gp.x, z: 28 * CELL - 0.9, y: 0, yaw: Math.PI, target: 'town', spawn: 'castle', color: 'blue', label: 'Return to Emberwick' });
     const sp = this.cc(20, 25);
     this.spawns.start = { pos: sp, yaw: 0 };
     this.spawns.portal = this.spawns.start;
@@ -112,13 +113,24 @@ export class Castle extends Dungeon {
     box(A, 'clothRed', tp.x, tp.y + 1.1, tp.z - 0.8, 1.2, 0.2, 1.0, { collide: false, shade: null });
     for (const c of [16, 24]) banner(at(c, 2).x, tp.y + 3.4, 2 * CELL + 0.05, false);
     fire(A, tp.x - 2.6, tp.y + 1.4, tp.z - 0.5, { size: 0.5 }); fire(A, tp.x + 2.6, tp.y + 1.4, tp.z - 0.5, { size: 0.5 });
-    this.king = hero(A, { name: 'King Aldemar', look: 'king', x: tp.x, z: tp.z - 0.7, y: tp.y + 0.8, pose: 'sit', yaw: 0, talk: false });
+    this.king = hero(A, { name: 'King Aldric', look: 'king', x: tp.x, z: tp.z - 0.7, y: tp.y + 0.8, pose: 'sit', yaw: 0, talk: false });
     this.king.position.y = tp.y + 0.8;
     interactable(A, new THREE.Vector3(tp.x, tp.y, tp.z + 1.4), 2.6, 'Seek an audience with the King', () => this.audience());
     // ---- library: bookshelves with lore
     for (const r of [10, 12, 14]) { const p = at(3, r); box(A, 'woodDark', p.x - 0.7, 1.4, p.z, 0.5, 2.8, 2.2, { tex: 1 }); for (let i = 0; i < 4; i++) box(A, 'clothRed', p.x - 0.42, 0.5 + i * 0.6, p.z, 0.04, 0.4, 2.0, { collide: false, shade: () => 0.6 }); }
     { const p = at(6, 12); box(A, 'woodDark', p.x, 0.75, p.z, 1.6, 0.1, 1.0, { collide: false }); box(A, 'woodDark', p.x, 0.35, p.z, 1.4, 0.7, 0.8, { tex: 1 }); fire(A, p.x, 0.95, p.z, { size: 0.25, intensity: 4, range: 6, embers: 1 }); }
-    interactable(A, at(4, 12), 2.2, 'Read the chronicles', () => this.game.hud.speak(LORE[Math.floor(Math.random() * LORE.length)], 7));
+    interactable(A, at(4, 12), 2.2, 'Read the chronicles', () => this.game.journal.readFor('castle'));
+    // a book on the red moon, its last page torn out
+    interactable(A, at(6, 14), 1.8, 'Read: "On the Red Moon"', () => this.game.journal.add('n33'));
+    // the great mirror: the King has no reflection
+    { const p = at(25, 12); box(A, 'woodDark', p.x + 1.0, 1.6, p.z, 0.15, 2.8, 1.6, { tex: 1 });
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.4), new THREE.MeshLambertMaterial({ color: 0x8a9aa8, emissive: 0x101418 }));
+      glass.position.set(p.x + 0.92, 1.6, p.z); glass.rotation.y = -Math.PI / 2; this.scene.add(glass);
+      interactable(A, p, 2.2, 'Look into the great mirror', () => {
+        this.game.journal.add('n35');
+        setTimeout(() => this.game.area === this && this.game.hud.speak('In the glass: the hall, the guards, the candles, the fire. The King passes behind you. In the glass, there is no one.', 7), 3500);
+      }); }
+    npc(A, { name: 'Castle Servant', x: at(24, 14).x, z: at(24, 14).z, cloth: 'cloth', variant: 'hunched', lines: NPC_LINES.servant, note: 'n34' });
     // ---- armory
     for (const r of [10, 14]) { const p = at(34, r); box(A, 'beam', p.x, 1.0, p.z + (r === 10 ? -0.9 : 0.9), 3, 0.12, 0.3, { collide: false, shade: null }); for (let i = 0; i < 6; i++) mesh(A, 'iron', boxGeo(0.06, 1.5, 0.03, 0.5), trs(p.x - 1.2 + i * 0.5, 1.0, p.z + (r === 10 ? -0.95 : 0.95), [0.1, 0, 0]), { shade: null }); }
     for (const c of [33, 36]) { const p = at(c, 12); box(A, 'ironPlate', p.x, 1.2, p.z, 0.6, 0.8, 0.4, { tag: 'prop' }); box(A, 'beam', p.x, 0.4, p.z, 0.1, 0.8, 0.1, { collide: false }); mesh(A, 'iron', boxGeo(0.32, 0.36, 0.34, 0.5), trs(p.x, 1.8, p.z)); }
@@ -132,12 +144,13 @@ export class Castle extends Dungeon {
       for (let i = -3; i <= 3; i++) mesh(A, 'ironDark', boxGeo(0.07, 3, 0.07, 0.5), trs(p.x + i * 0.32, p.y + 1.5, p.z + 1.6));
       A.collision.addCentered(p.x, p.y + 1.5, p.z + 1.6, 2.2, 3, 0.2);
     }
-    npc(A, { name: 'Shackled Prisoner', x: at(33, 2).x, z: at(33, 2).z, y: at(33, 2).y, variant: 'hunched', cloth: 'cloth', line: 'They say the Hound was once the King\'s favourite. Before.' });
+    npc(A, { name: 'Shackled Prisoner', x: at(33, 2).x, z: at(33, 2).z, y: at(33, 2).y, variant: 'hunched', cloth: 'cloth', lines: NPC_LINES.prisoner });
+    interactable(A, at(35, 3), 1.8, 'A burnt letter in the straw', () => this.game.journal.add('n06'));
     // ---- kitchen: hearth, pots, tables
     { const p = at(37, 23); box(A, 'stoneDark', p.x + 0.4, 1.0, p.z, 1.0, 2.0, 2.4, { worldUV: 1 }); fire(A, p.x, 0.5, p.z, { size: 0.7, intensity: 10, range: 10 }); }
     for (const c of [33, 35]) { const p = at(c, 24); box(A, 'woodDark', p.x, 0.45, p.z, 1.6, 0.9, 1.0, { tex: 1 }); }
     { const p = at(34, 22); mesh(A, 'ironDark', new THREE.CylinderGeometry(0.4, 0.3, 0.5, 8), trs(p.x, 0.25, p.z)); }
-    npc(A, { name: 'Castle Cook', x: at(35, 22).x, z: at(35, 22).z, cloth: 'clothBrown', line: 'Out of my kitchen unless you\'re hungry. Here - take a crust.' });
+    npc(A, { name: 'Castle Cook', x: at(35, 22).x, z: at(35, 22).z, cloth: 'clothBrown', lines: NPC_LINES.cook });
     interactable(A, at(34, 24), 2, 'Eat from the table', () => { this.game.player.heal(30); this.game.hud.speak('Bread, salt pork, sour ale. You feel better.'); });
     // ---- barracks: bunks and footlockers
     for (let r = 21; r <= 26; r += 2) for (const c of [2, 6]) { const p = at(c, r); box(A, 'woodDark', p.x + (c === 2 ? -0.4 : 0.4), 0.35, p.z, 1.0, 0.7, 2.0, { tex: 1 }); box(A, 'cloth', p.x + (c === 2 ? -0.4 : 0.4), 0.75, p.z, 0.9, 0.1, 1.8, { collide: false, shade: null }); }
@@ -163,7 +176,7 @@ export class Castle extends Dungeon {
       });
       this.guards.push({ blocker, group: g, rank, home: p.clone(), yaw, it });
     };
-    guard(19.5, 17, 0, 2, 'great hall');
+    guard(19.5, 17, 0, 3, 'great hall');
     guard(19.5, 9, 0, 4, 'throne room');
     // patrols (decorative)
     const c1 = at(12, 21), c2 = at(27, 25);
@@ -175,19 +188,24 @@ export class Castle extends Dungeon {
 
   audience() {
     const g = this.game, ri = g.renown.rankIndex;
-    if (ri < RANKS.length - 1) {
-      g.hud.speak(`King Aldemar: "${ri >= 4 ? 'Champion... you have done the realm service. But my Blade must be known in every hall. Return when they sing of you.' : 'Who let this one in? Come back when the realm knows your name.'}"`, 6);
-      return;
-    }
-    if (!g.state.world.kingGift) {
+    const say = (t, secs = 7) => g.hud.speak(`King Aldric: "${t}"`, secs);
+    if (ri >= 4 && !g.state.world.kingGift) {
+      // the Ash-bearer's first audience
       g.state.world.kingGift = true;
-      const it = g.state.addItemSaved('royal_signet');
+      g.state.addItemSaved('royal_signet');
       g.state.saved.currency += 1000;
       g.state.save();
-      g.hud.banner('King\'s Blade', 'the King grants you his signet');
-      g.hud.speak('King Aldemar: "Kneel, King\'s Blade. Take my signet and a thousand ashes. The crypts beneath us still stir - end them."', 7);
-      void it;
-    } else g.hud.speak('King Aldemar: "My Blade. The deep dark below the catacombs is sealed... for now. Be ready."', 6);
+      g.hud.banner('An audience with the King', 'he presses his signet into your palm');
+      say('Ash-bearer. Take my seal, and a thousand ashes for the fire. Emberwick stands because of hands like yours.');
+      return;
+    }
+    if (ri >= 5) {
+      // the King's own: private errands, and the edges of the truth
+      // (quest stub: see systems/ending.js)
+      say(pick([KING_LINES[5], 'Go to the bottom of the catacombs, when the way opens. If something there wears my face... do not listen to it.', 'I do not sleep. Kings of Aurelan never needed to. Do not look at me like that.']), 8);
+      return;
+    }
+    say(KING_LINES[ri]);
   }
 
   /** The castle shares the town's sky: same DAY / NIGHT as Emberwick. */
@@ -236,10 +254,3 @@ export class Castle extends Dungeon {
   }
 }
 
-const LORE = [
-  '"In the year of grey ash the dead first stirred beneath the catacombs. The Warden was set to guard them. He guards them still."',
-  '"The Brood Mother came up from the deep wells. Her children are counted in thousands; her name in none."',
-  '"The King\'s Hound was loosed upon the crypts to hunt the hollow. It did not come back as a hound."',
-  '"The Abbot of Ash preached that fire cleanses. He tested it on his own congregation first."',
-  '"Of the Drowned Lord the chronicle says only: \'He walked into the black water to bargain. The water won.\'"',
-];

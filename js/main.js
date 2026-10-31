@@ -32,6 +32,8 @@ import { AdminMenu, DEBUG_DEFAULTS } from './ui/admin.js';
 import { fastTap } from './ui/fasttap.js';
 import { addXp } from './systems/skills.js';
 import { Renown } from './systems/renown.js';
+import { Journal } from './systems/journal.js';
+import { AREA_LORE, BOSS_LORE, DEATH_LINES, TIPS, pick } from '../data/lore.js';
 import { ENEMY_TYPES } from './entities/enemyTypes.js';
 import { EnemyManager } from './entities/enemyManager.js';
 import { CombatSystem } from './systems/combat.js';
@@ -89,13 +91,22 @@ class Game {
     this.admin = new AdminMenu(this);
     for (const id of ['menu', 'admin', 'panel', 'title']) fastTap(document.getElementById(id));
     this.renown = new Renown(this);
+    this.journal = new Journal(this);
     this.renown.noteSkills();
     this.renown.lastRank = this.renown.rankIndex;
     this.deathTimer = 0;
     events.on('playerDied', () => this.onPlayerDeath());
     events.on('areaChanged', () => this.projectiles.clear());
+    // boss title cards on first sight, last words on death
+    events.on('enemyAlerted', ({ enemy }) => {
+      const L = BOSS_LORE[enemy.type];
+      if (!enemy.def.boss || !L || enemy._carded) return;
+      enemy._carded = true;
+      this.hud.banner(L.title, L.sub);
+    });
     events.on('enemyKilled', ({ enemy }) => {
       if (!enemy.def.boss) return;
+      if (BOSS_LORE[enemy.type]) setTimeout(() => this.hud.speak(BOSS_LORE[enemy.type].death, 6), 900);
       this.state.world.bosses[enemy.type] = (this.state.world.bosses[enemy.type] || 0) + 1;
       this.loot.roll('boss', enemy.pos, 4);
       // bosses always drop a Special, sometimes a Rare
@@ -157,7 +168,7 @@ class Game {
       this.input.flush();
       if (this.input.device === 'touch') this.requestFullscreen();
       else this.input.requestLock();
-      this.hud.banner(this.area.name, this.area.hostile ? '' : 'a refuge for the hollow');
+      this.areaBanner();
     };
     title.addEventListener('click', go);
     title.addEventListener('touchend', (e) => { e.preventDefault(); go(e); });
@@ -223,6 +234,16 @@ class Game {
     this.input.enabled = true;
     this.input.flush();
     this.input.requestLock();
+  }
+
+  /** Area name + one flavour line from the lore. */
+  areaBanner() {
+    const a = this.area;
+    const key = a.loreKey || a.biomeId || a.id;
+    const L = AREA_LORE[key];
+    let line = L ? L.line : '';
+    if (a.id === 'town') line = `${this.townPhase() === 'day' ? 'grey day' : 'deep night'} \u00B7 ${line}`;
+    this.hud.banner(a.name, line);
   }
 
   enemyName(type) { return ENEMY_TYPES[type] ? ENEMY_TYPES[type].name : type; }
@@ -308,12 +329,12 @@ class Game {
     };
     if (instant) { doSwap(); return; }
     this.transitioning = true;
-    this.hud.fade(true);
+    this.hud.fade(true, pick(TIPS));
     setTimeout(() => {
       doSwap();
       this.hud.fade(false);
       this.transitioning = false;
-      this.hud.banner(this.area.name, this.area.hostile ? 'the dead do not rest here' : `${this.clock.phase === 'day' ? 'grey day' : 'deep night'} in the hollow`);
+      this.areaBanner();
     }, 480);
   }
 
@@ -346,7 +367,7 @@ class Game {
     if (nItems) parts.push(`${nItems} item${nItems > 1 ? 's' : ''}`);
     this.state.loseRun();
     this.state.save();
-    this.hud.showDeath(true, parts.length ? `Lost: ${parts.join(', ')}` : 'You carried nothing worth losing.');
+    this.hud.showDeath(true, (parts.length ? `The warm loot stays below: ${parts.join(', ')}. ` : '') + pick(DEATH_LINES));
     this.hud.prompt('');
     this.deathTimer = 4.2;
     this.respawning = false;
@@ -485,7 +506,7 @@ class Game {
     const runItems = st.run.items.reduce((a, i) => a + i.qty, 0);
     const flasks = st.count('ashen_flask');
     this.hud.setRunInfo((st.inRun
-      ? `Run: ${st.run.currency} ashes${runItems ? ' · ' + runItems + ' item' + (runItems > 1 ? 's' : '') : ''}  ·  Kept: ${st.saved.currency}`
+      ? `Warm: ${st.run.currency} ashes${runItems ? ' · ' + runItems + ' item' + (runItems > 1 ? 's' : '') : ''}  ·  Kept: ${st.saved.currency}`
       : `Ashes: ${st.saved.currency}  ·  Lv ${st.progression.level}${st.progression.skillPoints ? ' (' + st.progression.skillPoints + ' pt)' : ''}`) + `  ·  Flasks: ${flasks}`);
     this.hud.update(dt, this.camera);
     input.flush();

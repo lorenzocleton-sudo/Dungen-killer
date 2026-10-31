@@ -12,7 +12,7 @@ import { box, mesh, wallTorch, brazier, portal, chest } from './props.js';
 import { generateDungeon } from './dungeonGen.js';
 import { BIOMES, BIOME_IDS, mainLevelEnemies } from './biomes.js';
 import { BOSS_BY_LEVEL } from '../entities/enemyTypes.js';
-import { gate } from './props.js';
+import { gate, remains } from './props.js';
 
 export const CELL = 2.5;
 const LEVEL_DROP = 1.5;
@@ -218,7 +218,7 @@ export class Dungeon extends Area {
     // portal back to town, against the north wall of the entrance room
     let pr = 0, pc = 0;
     for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (this.grid[r][c].portal) { pr = r; pc = c; }
-    if (!this.noAutoPortal) portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', spawn: this.returnSpawn, color: 'blue', label: 'Return to Ashen Hollow' });
+    if (!this.noAutoPortal) portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', spawn: this.returnSpawn, color: 'blue', label: 'Return to Emberwick' });
     this.spawns.portal = { pos: new THREE.Vector3((pc + 0.5) * CELL, 0, (pr + 2.7) * CELL), yaw: Math.PI };
     // arrive facing away from the portal (it sits on the room's north wall)
     this.spawns.start = this.spawns.portal;
@@ -314,6 +314,7 @@ export class Dungeon extends Area {
   /** Decoration for generated layouts: bones, rubble, sarcophagi, a chest. */
   _decorateRandom() {
     const A = this;
+    if (this.rewardChest) this.addRemains();
     let seed = this.layout.seed || 77;
     const rnd = () => { seed = (seed * 16807 + 11) % 2147483647; return seed / 2147483647; };
     const cc = (c, r) => [(c + 0.5) * CELL, (r + 0.5) * CELL, this.at(r, c).floorY];
@@ -375,6 +376,16 @@ export class Dungeon extends Area {
         this.chestRarity = rarity;
         chest(A, x, y, z - CELL / 2 + 0.7, 0, () => this.game.rewards.open(rarity, new THREE.Vector3(x, y, z)), { glow: this.game.rewards.color(rarity) });
       } else chest(A, x, y, z - CELL / 2 + 0.7, 0, () => this.game.loot.roll('chest', new THREE.Vector3(x, y, z), 3));
+    }
+  }
+
+  /** Random crypt: two sets of remains. */
+  addRemains() {
+    const rooms = (this.layout.roomRects || []).slice(1);
+    for (let i = 0; i < Math.min(2, rooms.length); i++) {
+      const o = rooms[(i * 3 + 1) % rooms.length];
+      const p = this.cellCenter(o.x, o.y + Math.floor(o.h / 2));
+      remains(this, p.x + 0.6, p.y, p.z, ['catacombs', 'any']);
     }
   }
 
@@ -453,6 +464,7 @@ export class MainDungeon extends Dungeon {
   constructor(game) {
     const level = Math.max(1, Math.min(MAIN_LEVELS, game.dungeonLevel || 1));
     super(game, 'dungeon', `The Catacombs \u2014 Level ${level}`);
+    this.loreKey = 'dungeon';
     this.level = level;
     this.transient = true;
     this.returnSpawn = 'portal';
@@ -486,6 +498,13 @@ export class MainDungeon extends Dungeon {
       mk(2, { target: 'town', spawn: 'portal', color: 'blue', sign: 'RETURN', label: 'Return to town (your loot is kept)', lockedLabel: 'Sealed until the guardian falls' }),
     ];
     this.gates[0].permanent = last;
+    // remains of earlier Wanderers, each with a note
+    const rooms = this.layout.roomRects.filter((o) => !o.arena).slice(1);
+    for (let i = 0; i < Math.min(3, rooms.length); i++) {
+      const o = rooms[Math.floor((i + 0.5) * rooms.length / 3)];
+      const p = this.cellCenter(o.x + Math.floor(o.w / 2), o.y);
+      remains(this, p.x + 0.6, p.y, p.z + 0.4, [`catacombs:${this.level}`, 'catacombs']);
+    }
     this.arenaCenter = this.cellCenter(a.cx, a.cy);
     this.arenaEntry = this.cellCenter(a.cx - sx * (Math.floor(a.w / 2) - 1), a.cy - sz * (Math.floor(a.h / 2) - 1));
     this.arenaEntryYaw = Math.atan2(-sx, -sz) + Math.PI;
@@ -519,6 +538,7 @@ export class RandomDungeon extends Dungeon {
     this.transient = true;
     this.returnSpawn = 'portal_depths';
     this.rewardChest = true;
+    this.loreKey = 'crypt';
     this.layout = generateDungeon((Math.random() * 1e9) | 0, { enemies: this.biome.enemies });
     this.cells = this.layout.cells;
     this.braziers = this.layout.braziers;

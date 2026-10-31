@@ -10,6 +10,7 @@ import {
   gravestone, deadTree, npc, groundAO, fire, hollowHouse, interactable, hero, bonfire, anvil, trainingDummy,
 } from './props.js';
 import { furnishHome } from './homes.js';
+import { NPC_LINES } from '../../data/lore.js';
 
 const HALF = 34;     // wall centre line
 const WALL_H = 6.5;
@@ -34,7 +35,8 @@ export const PHASES = {
 
 export class Town extends Area {
   constructor(game) {
-    super(game, 'town', 'Ashen Hollow');
+    super(game, 'town', 'Emberwick');
+    this.loreKey = 'town';
     this.hostile = false;
     this.phase = null;
   }
@@ -130,7 +132,7 @@ export class Town extends Area {
         mesh(a, 'bone', boxGeo(0.25, 0.25, 0.25, 0.5), trs(-16.6, 1.2, -10.8, 0.6), { shade: null });
         box(a, 'stoneDark', -20.3, 0.5, -10.9, 0.7, 1.0, 1.0, { tex: 1 });
         fire(a, -20.1, 0.9, -10.9, { size: 0.45, intensity: 7, range: 8, embers: 2 });
-        npc(a, { id: 'merchant', name: 'Hooded Merchant', role: 'merchant', x: -18.2, z: -12, yaw: Math.PI / 2, cloth: 'clothBrown' });
+        npc(a, { id: 'merchant', lines: NPC_LINES.merchant, name: 'Hooded Merchant', role: 'merchant', x: -18.2, z: -12, yaw: Math.PI / 2, cloth: 'clothBrown' });
       },
     });
     this.interiors.push(market);
@@ -149,7 +151,7 @@ export class Town extends Area {
         trainingDummy(a, 13.5, -15.2, 0.4);
         box(a, 'beam', 12.2, 1.0, -8.6, 2.2, 0.1, 0.4, { collide: false, shade: null });
         for (let i = 0; i < 4; i++) mesh(a, 'iron', boxGeo(0.05, 1.3, 0.02, 0.5), trs(11.6 + i * 0.4, 0.9, -8.5, [0.15, 0, 0]), { shade: null });
-        npc(a, { id: 'master', name: 'The Old Master', role: 'trainer', x: 18.3, z: -12, yaw: -Math.PI / 2, variant: 'staff', cloth: 'cloth', scale: 1.05 });
+        npc(a, { id: 'master', lines: NPC_LINES.master, note: 'n05', name: 'The Old Master', role: 'trainer', x: 18.3, z: -12, yaw: -Math.PI / 2, variant: 'staff', cloth: 'cloth', scale: 1.05 });
       },
     });
     this.interiors.push(hall);
@@ -196,7 +198,31 @@ export class Town extends Area {
       wallTorch(A, -HALF + 1.0, 3.4, t, Math.PI / 2);
       wallTorch(A, HALF - 1.0, 3.4, t, -Math.PI / 2);
     }
+    // the Hearth: the great fire of the square, holding the stilled hour
     bonfire(A, -5, 8);
+    this.hearth = new THREE.Vector3(-5, 0, 8);
+    box(A, 'stoneDark', -5, 1.0, 5.6, 1.6, 2.0, 0.4, { worldUV: 1 });
+    interactable(A, new THREE.Vector3(-5, 0, 5.9), 1.8, 'Read the carving above the Hearth', () => this.game.journal.add('n01'));
+    this.mapMarkers.push({ x: -5, z: 8, type: 'portal' });
+
+    // the menagerie: animals that don't age, and owls that remember
+    for (let i = 0; i < 3; i++) {
+      const x = 15.5 + i * 2.2, z = 16.5;
+      box(A, 'woodDark', x, 0.15, z, 1.8, 0.3, 1.6, {});
+      box(A, 'woodDark', x, 2.05, z, 1.9, 0.12, 1.7, { collide: false, shade: null });
+      for (let b = -3; b <= 3; b++) { box(A, 'ironDark', x + b * 0.27, 1.1, z + 0.78, 0.05, 1.8, 0.05, { collide: false, shade: null }); box(A, 'ironDark', x + b * 0.27, 1.1, z - 0.78, 0.05, 1.8, 0.05, { collide: false, shade: null }); }
+      A.collision.addCentered(x, 1, z, 1.9, 2, 1.7, 'prop');
+      // an owl on a perch
+      const owl = new THREE.Group();
+      const ob = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.45, 0.28), litMaterial('clothBrown')); ob.position.y = 0.22; owl.add(ob);
+      const oh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.24, 0.26), litMaterial('clothBrown')); oh.position.y = 0.55; owl.add(oh);
+      for (const s2 of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.02), basicMaterial(0xe0b030)); e.position.set(s2 * 0.07, 0.57, 0.14); owl.add(e); }
+      owl.position.set(x, 0.9, z); this.scene.add(owl);
+      box(A, 'beam', x, 0.6, z, 1.2, 0.08, 0.08, { collide: false, shade: null });
+      const ph = i * 2.1;
+      this.animated.push({ update: (dt, t, player) => { const tx = Math.atan2(player.pos.x - x, player.pos.z - z); owl.rotation.y += (tx - owl.rotation.y) * Math.min(1, dt * (Math.sin(t * 0.3 + ph) > 0.7 ? 6 : 0.4)); } });
+    }
+    npc(A, { id: 'keeper', name: 'Menagerie Keeper', lines: NPC_LINES.keeper, note: 'n10', x: 19.8, z: 14.6, yaw: Math.PI, cloth: 'clothBrown' });
 
     // ---------------------------------------------------------- smithy (outdoor)
     box(A, 'stoneDark', -9, 0.6, -24.5, 2.4, 1.2, 1.6, { worldUV: 1 });
@@ -234,10 +260,10 @@ export class Town extends Area {
 
     // ---------------------------------------------------------- townsfolk + heroes
     this.npcDefs = [
-      { id: 'widow', name: 'Grieving Widow', role: 'story', x: 23.5, z: -2.2, yaw: 1.6, cloth: 'clothRed' },
-      { id: 'warden', name: 'Gate Warden', role: 'guard', x: 3.6, z: 30.4, yaw: Math.PI, scale: 1.15 },
-      { id: 'beggar', name: 'Mad Beggar', role: 'lore', x: -2.4, z: -17.4, yaw: 0.4, variant: 'hunched', cloth: 'cloth', scale: 0.9 },
-      { id: 'smith', name: 'The Smith', role: 'blacksmith', x: -7.6, z: -21.2, yaw: 2.6, variant: 'hunched', cloth: 'clothBrown' },
+      { id: 'widow', lines: NPC_LINES.widow, note: 'n08', name: 'Grieving Widow', role: 'story', x: 23.5, z: -2.2, yaw: 1.6, cloth: 'clothRed' },
+      { id: 'warden', lines: NPC_LINES.warden, name: 'Gate Warden', role: 'guard', x: 3.6, z: 30.4, yaw: Math.PI, scale: 1.15 },
+      { id: 'beggar', lines: NPC_LINES.beggar, name: 'Mad Beggar', role: 'lore', x: -2.4, z: -17.4, yaw: 0.4, variant: 'hunched', cloth: 'cloth', scale: 0.9 },
+      { id: 'smith', lines: NPC_LINES.smith, name: 'The Smith', role: 'blacksmith', x: -7.6, z: -21.2, yaw: 2.6, variant: 'hunched', cloth: 'clothBrown' },
     ];
     for (const d of this.npcDefs) npc(A, d);
     const face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);

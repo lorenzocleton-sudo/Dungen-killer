@@ -4,6 +4,7 @@
 import { ITEMS, SLOTS, SLOT_NAMES, SHOP_STOCK, sellPrice, statLine, RARITY } from '../systems/items.js';
 import { SKILLS, SKILL_MAP, BRANCHES, rankOf, learnBlocker, isOpen, xpForLevel, TREE_W, TREE_H } from '../systems/skills.js';
 import { RANKS } from '../systems/renown.js';
+import { NOTES, NOTE_MAP, ITEM_LORE, RANK_EPITHET } from '../../data/lore.js';
 import { statRows } from '../systems/stats.js';
 import { SpatialNav } from './nav.js';
 
@@ -11,7 +12,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 const TITLES = { inventory: 'Inventory', shop: 'The Ashen Market', trainer: 'Hall of Paths' };
 const TABS = {
-  inventory: [['items', 'Items'], ['status', 'Renown'], ['tree', 'Skill Tree']],
+  inventory: [['items', 'Items'], ['status', 'Renown'], ['tree', 'Skill Tree'], ['journal', 'Lore Journal']],
   shop: [['buy', 'Buy'], ['sell', 'Sell']],
   trainer: [['tree', 'Skill Tree']],
 };
@@ -151,6 +152,7 @@ export class Screens {
     if (this.tab === 'items') body = this.renderItems();
     else if (this.tab === 'tree') body = this.renderTree(this.mode === 'trainer');
     else if (this.tab === 'status') body = this.renderStatus();
+    else if (this.tab === 'journal') body = this.renderJournal();
     else if (this.tab === 'buy') body = this.renderBuy();
     else if (this.tab === 'sell') body = this.renderSell();
     this.root.innerHTML = `<div class="pn-box mode-${this.mode}">${head}<div class="pn-body">${body}</div>
@@ -190,7 +192,7 @@ export class Screens {
     return `<div class="inv-layout">
       <div class="inv-left"><div class="slots">${slots}</div><div class="stats">${stats}</div></div>
       <div class="inv-right"><div class="grid">${grid}</div>
-        <div class="legend"><span class="runbox"></span> found this run — lost if you die</div>
+        <div class="legend"><span class="runbox"></span> warm loot \u2014 unbound until carried through a portal alive</div>
         ${this.itemDetail()}</div>
     </div>`;
   }
@@ -216,6 +218,7 @@ export class Screens {
       <div class="d-kind">${def.rarity ? `<span style="color:${RARITY[def.rarity].color}">${RARITY[def.rarity].name}</span> · ` : ''}${def.kind === 'gear' ? SLOT_NAMES[def.slot] : def.kind[0].toUpperCase() + def.kind.slice(1)} · worth ${sellPrice(f.item.id)} ashes</div>
       ${def.stats && Object.keys(def.stats).length ? `<div class="d-stats">${statLine(def.stats)}</div>` : ''}
       <div class="d-desc">${esc(def.desc || '')}</div>
+      ${ITEM_LORE[f.item.id] ? `<div class="d-lore">${esc(ITEM_LORE[f.item.id])}</div>` : ''}
       <div class="d-btns">${btns.join('')}</div></div>`;
   }
 
@@ -265,12 +268,13 @@ export class Screens {
     const ladder = RANKS.map((rk, i) => `<div class="ladder-step ${i <= r.index ? 'got' : ''} ${i === r.index ? 'cur' : ''}"><b>${rk.title}</b><span>${rk.min}</span></div>`).join('');
     const perks = [
       `Shop discount: ${this.game.renown.discount}%`,
-      `Keystone skills: ${r.index >= 5 ? 'all' : r.index >= 4 ? 'tier II' : r.index >= 3 ? 'tier I' : 'locked (needs Slayer)'}`,
-      `Castle: ${r.index >= 6 ? 'audience with the King' : r.index >= 4 ? 'throne room' : r.index >= 2 ? 'great hall' : r.index >= 1 ? 'courtyard' : 'gates closed (needs Wanderer)'}`,
+      `Keystone skills: ${r.index >= 4 ? 'all' : r.index >= 3 ? 'tier II' : r.index >= 2 ? 'tier I' : 'locked (needs Slayer)'}`,
+      `Castle: ${r.index >= 5 ? 'the King\'s private errands' : r.index >= 4 ? 'throne room + audience with the King' : r.index >= 3 ? 'great hall' : r.index >= 1 ? 'courtyard' : 'gates closed (needs Wanderer)'}`,
     ];
     return `<div class="status-layout">
       <div class="status-main">
         <div class="rank-title">${r.rank.title}</div>
+        <div class="small">In Emberwick they call you "${RANK_EPITHET[r.index]}".</div>
         <div class="rank-score">${r.score} renown${r.next ? ` · ${r.next.min - r.score} to ${r.next.title}` : ' · highest rank'}</div>
         <div class="rank-bar"><span style="width:${Math.round(r.progress * 100)}%"></span></div>
         <div class="stats rank-parts">${parts}</div>
@@ -278,6 +282,13 @@ export class Screens {
       </div>
       <div class="status-side"><div class="ladder">${ladder}</div><ul class="perks">${perks.map((p) => `<li>${p}</li>`).join('')}</ul></div>
     </div>`;
+  }
+
+  renderJournal() {
+    const found = this.game.journal.found;
+    if (!found.length) return '<div class="empty">No notes yet. Search bookshelves, chests and the remains of those who went before.</div>';
+    const items = found.map((id) => NOTE_MAP[id]).filter(Boolean).map((n) => `<div class="note"><div class="note-title">${esc(n.title)}</div><div class="note-text">\u201C${esc(n.text)}\u201D</div></div>`).join('');
+    return `<div class="journal"><div class="small">${found.length} of ${NOTES.length} fragments found</div>${items}</div>`;
   }
 
   renderTree(canLearn) {

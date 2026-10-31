@@ -55,6 +55,7 @@ export function furnishHome(area, inner, idx) {
     g.loot.roll('home', cp, 1);
     g.state.addCurrency(5 + Math.floor(Math.random() * 20));
     g.hud.feed('You find a few ashes tucked away.', '#d8c080');
+    if (Math.random() < 0.2) g.journal.readFor('town');
     g.state.save();
   });
   // home chests can be searched again each day: keep the prompt alive
@@ -73,9 +74,7 @@ export function furnishHome(area, inner, idx) {
     const bs = B('woodDark', -across, 0, 0.45, 2.2, 1.6);
     for (let i = 0; i < 3; i++) B('clothRed', -across + 0.24, 0, 0.03, 0.35, 1.4, { y: 0.4 + i * 0.6, collide: false, shade: () => 0.6 });
     interactable(area, bs, 1.8, 'Read from the bookshelf', () => {
-      const line = TOWN_LORE[(idx * 3 + Math.floor(Math.random() * 3)) % TOWN_LORE.length];
-      game.state.world.lore[line.slice(0, 20)] = true;
-      game.hud.speak(line, 7);
+      game.journal.readFor('town');
     });
   }
   // wardrobe on the right wall

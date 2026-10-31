@@ -42,7 +42,7 @@ export const ENEMY_TYPES = {
     attacks: ['slam', 'sweep', 'volley:water'], phase2: ['nova:water', 'summon:wraith:2', 'charge', 'rain'], build: () => buildBrute({ scale: 2.2, drowned: true }) }),
 };
 
-export const BOSS_BY_LEVEL = ['grave_warden', 'brood_mother', 'kings_hound', 'ashen_abbot', 'drowned_lord'];
+export const BOSS_BY_LEVEL = ['grave_warden', 'brood_mother', 'ashen_abbot', 'kings_hound', 'drowned_lord'];
 
 // Per-enemy material clones so each one can flash when hit.
 function mats(names) {

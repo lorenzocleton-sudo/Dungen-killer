@@ -57,6 +57,7 @@ export class Rewards {
     const item = this.randomItem(rarity);
     if (item) g.loot.spawn(item, pos, 0);
     g.loot.roll('chest', pos, rarity === 'normal' ? 3 : 2);
+    if (Math.random() < 0.3 && g.journal) g.journal.readFor(g.area.biomeId || 'any', 'any');
     if (rarity !== 'normal') g.hud.banner(`${RARITY[rarity].name} reward`, 'fortune smiles on the bold');
     g.hud.feed(`Reward chest: ${RARITY[rarity].name}`, this.color(rarity));
     g.state.save();

@@ -3,7 +3,7 @@
 // whose enemy mix deepens with each level.
 export const BIOMES = {
   crypt: {
-    name: 'Crypt', title: 'The Shifting Crypt',
+    name: 'Crypt', title: 'The Shifting Depths',
     wall: 'stoneDark', hallWall: 'stoneWall', floor: 'flagstone', hallFloor: 'cobbleDark', stair: 'stone', ceiling: 'ceiling', pillar: 'stoneWall',
     fog: 0x040403, fogFar: 24, hemi: [0x4a4640, 0x0a0806, 1.3], lantern: 5.6, torch: 0xff8a3a, torchRate: 4, dust: [0.32, 0.3, 0.27],
     decor: ['bones', 'bones', 'rubble', 'sarcophagus'],

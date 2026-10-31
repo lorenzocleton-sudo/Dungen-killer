@@ -123,7 +123,10 @@ export class HUD {
     this.el.deathSub.textContent = sub;
   }
 
-  fade(on) { this.el.fade.classList.toggle('on', on); }
+  fade(on, tip) {
+    this.el.fade.classList.toggle('on', on);
+    if (tip !== undefined) this.el.fade.textContent = tip || '';
+  }
 
   /** Floating damage number anchored to a world position. */
   damageNumber(pos, amount, kind = '') {

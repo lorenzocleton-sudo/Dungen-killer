@@ -6,15 +6,15 @@
 // Every source only ever grows, so renown never decreases (even on death).
 import { events } from '../engine/events.js';
 import { SKILL_MAP } from './skills.js';
+import { FOLK_LINES, HERO_LINES, RANK_EPITHET, BOSS_LORE, pick } from '../../data/lore.js';
 
 export const RANKS = [
-  { min: 0, title: 'Nobody', greet: 'Another ash-born. Keep walking.' },
-  { min: 60, title: 'Wanderer', greet: 'You again. Still breathing, I see.' },
-  { min: 200, title: 'Sellsword', greet: 'Word is you can hold a blade.' },
-  { min: 500, title: 'Slayer', greet: 'The Slayer! The crypts grow quiet where you walk.' },
-  { min: 1100, title: 'Champion', greet: 'Champion. The town owes you more than it can say.' },
-  { min: 2200, title: 'Hero of the Realm', greet: 'Hero of the Realm... it is an honour.' },
-  { min: 4000, title: 'King\'s Blade', greet: 'My lord, the King\'s Blade! Make way!' },
+  { min: 0, title: 'Nobody' },
+  { min: 60, title: 'Wanderer' },
+  { min: 300, title: 'Slayer' },
+  { min: 900, title: 'Champion' },
+  { min: 2000, title: 'Hero of the Realm' },
+  { min: 4000, title: 'King\'s Blade' },
 ];
 
 export const FEAT_RENOWN = 250;   // first kill of each boss type
@@ -102,7 +102,10 @@ export class Renown {
   }
 
   /** Shop discount in % for the current rank. */
-  get discount() { return [0, 0, 3, 6, 10, 14, 20][this.rankIndex]; }
+  get discount() { return [0, 0, 5, 10, 15, 20][this.rankIndex]; }
+
+  /** How people call you at your rank. */
+  get epithet() { return RANK_EPITHET[this.rankIndex]; }
 
   changed(quiet) {
     const i = this.rankIndex;
@@ -117,24 +120,19 @@ export class Renown {
   // ------------------------------------------------------------ talk
   /** What a townsperson says, based on rank. */
   greeting(npcName) {
-    return `${npcName}: "${this.rank.greet}"`;
+    return `${npcName}: "${pick(FOLK_LINES[this.rankIndex])}"`;
   }
 
-  /** Heroes comment on your actual feats. */
+  /** Hearth heroes talk about themselves, and sometimes about your feats. */
   heroComment(heroName) {
-    const r = this.data, i = this.rankIndex;
+    const r = this.data;
+    const own = HERO_LINES[heroName] || ['Feed the fire.'];
     const feats = Object.keys(r.feats);
-    const lines = [];
-    if (feats.length) {
+    if (feats.length && Math.random() < 0.3) {
       const last = feats.sort((a, b) => r.feats[b] - r.feats[a])[0];
-      const name = this.game.enemyName ? this.game.enemyName(last) : last;
-      lines.push(`They say you felled ${name}. I'd not have believed it a month ago.`);
+      const who = BOSS_LORE[last] ? BOSS_LORE[last].title : last;
+      return `${heroName}: "${who}... you went that deep? Then you are ${this.epithet} now."`;
     }
-    if (r.deepest >= 3) lines.push(`Level ${r.deepest} of the catacombs... few come back from that deep.`);
-    if (r.killCount >= 50) lines.push(`${r.killCount} of the dead put back in the ground. The dead remember you.`);
-    if (i <= 1) lines.push('Go on, then. The crypts will teach you or bury you.', 'You smell of grave-dust. Good. It means you went down there.');
-    if (i >= 4) lines.push('If the King has sense, he will send for you.');
-    if (!lines.length) lines.push('Keep your blade sharp and your flask full.');
-    return `${heroName}: "${lines[Math.floor(Math.random() * lines.length)]}"`;
+    return `${heroName}: "${pick(own)}"`;
   }
 }

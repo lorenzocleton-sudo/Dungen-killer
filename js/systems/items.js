@@ -35,9 +35,9 @@ export const ITEMS = {
   rusted_ring: { name: 'Rusted Ring', kind: 'gear', slot: 'ring', value: 50, stats: { critChance: 3 }, icon: ['○', '#a07a50'], desc: 'Tarnished, but lucky.' },
   ember_ring: { name: 'Ring of Embers', kind: 'gear', slot: 'ring', value: 240, stats: { critChance: 7, damagePct: 5 }, icon: ['○', '#ff7a30'], desc: 'Warm against the skin.' },
   // renown-gated shop wares
-  champion_blade: { name: 'Champion\'s Blade', kind: 'gear', slot: 'weapon', model: 'longsword', value: 700, minRank: 3, stats: { damagePct: 38, critChance: 4, reach: 0.2 }, icon: ['\u2694', '#e8d8b0'], desc: 'Sold only to those the town trusts.' },
-  realm_plate: { name: 'Plate of the Realm', kind: 'gear', slot: 'chest', value: 900, minRank: 4, stats: { maxHp: 60, defense: 16, maxStamina: 10 }, icon: ['\u25A3', '#d8d0c0'], desc: 'Bears the royal crest.' },
-  royal_signet: { name: 'Royal Signet', kind: 'gear', slot: 'ring', value: 1200, minRank: 5, stats: { damagePct: 12, critChance: 6, staminaRegenPct: 20 }, icon: ['\u25CB', '#f0d070'], desc: 'Given to the King\'s chosen.' },
+  champion_blade: { name: 'Champion\'s Blade', kind: 'gear', slot: 'weapon', model: 'longsword', value: 700, minRank: 2, stats: { damagePct: 38, critChance: 4, reach: 0.2 }, icon: ['\u2694', '#e8d8b0'], desc: 'Sold only to those the town trusts.' },
+  realm_plate: { name: 'Plate of the Realm', kind: 'gear', slot: 'chest', value: 900, minRank: 3, stats: { maxHp: 60, defense: 16, maxStamina: 10 }, icon: ['\u25A3', '#d8d0c0'], desc: 'Bears the royal crest.' },
+  royal_signet: { name: 'Royal Signet', kind: 'gear', slot: 'ring', value: 1200, minRank: 4, stats: { damagePct: 12, critChance: 6, staminaRegenPct: 20 }, icon: ['\u25CB', '#f0d070'], desc: 'Given to the King\'s chosen.' },
   vigor_ring: { name: 'Ring of Vigor', kind: 'gear', slot: 'ring', value: 220, stats: { maxHp: 30 }, icon: ['○', '#c04040'], desc: 'Your heart beats a little louder.' },
 };
 

@@ -12,9 +12,9 @@ export const TREE_W = 100, TREE_H = 160;
 
 export const BRANCHES = {
   root: { name: 'Awakened', color: '#b8a888' },
-  iron: { name: 'Path of Iron', color: '#b0b4bc', desc: 'Steel, endurance, crushing blows.' },
-  ash: { name: 'Path of Ash', color: '#e08040', desc: 'Forbidden flame and pale sorcery.' },
-  shadow: { name: 'Path of Shadow', color: '#8a9a7a', desc: 'Speed, precision, the knife in the dark.' },
+  iron: { name: 'The Oathguard', color: '#b0b4bc', desc: 'Knights who believed a spoken vow binds the world itself.' },
+  ash: { name: 'The Cinder Choir', color: '#e08040', desc: 'Priests who sang to the fire beneath the mountains.' },
+  shadow: { name: 'The Veiled', color: '#8a9a7a', desc: 'Thieves who once stole a single hour from the night, and hid it.' },
   hybrid: { name: 'Crossroads', color: '#c8a0d8', desc: 'Where two paths meet.' },
 };
 
@@ -47,9 +47,9 @@ export const SKILLS = [
   N('w_spikes', 'iron', 30, 54, 'Spiked Mail', 'Attackers take another 15% of their damage.', { thornsPct: 15 }, { req: ['w_bulwark'] }),
   N('w_warcry', 'iron', 12, 40, 'War Cry', 'Kills restore 10 stamina.', { killStamina: 10 }, { req: ['w_brutal', 'w_titan'] }),
   N('w_unyield', 'iron', 26, 40, 'Unyielding', '+25 max HP and 6% less damage taken.', { maxHp: 25, defense: 6 }, { req: ['w_titan', 'w_spikes'] }),
-  N('w_exec', 'iron', 12, 26, 'Executioner', 'KEYSTONE: +60% damage to enemies below 30% HP.', { executePct: 60 }, { req: ['w_warcry'], key: true, rank: 3 }),
-  N('w_last', 'iron', 26, 26, 'Last Stand', 'KEYSTONE: once per dungeon visit, a killing blow leaves you at 1 HP, invulnerable for 2s.', { cheatDeath: 1 }, { req: ['w_unyield'], key: true, rank: 4 }),
-  N('w_colossus', 'iron', 19, 12, 'Colossus', 'KEYSTONE: +60 max HP, +20% damage, +10% defense.', { maxHp: 60, damagePct: 20, defense: 10 }, { req: ['w_exec', 'w_last'], key: true, rank: 5, points: 3 }),
+  N('w_exec', 'iron', 12, 26, 'Executioner', 'KEYSTONE: +60% damage to enemies below 30% HP.', { executePct: 60 }, { req: ['w_warcry'], key: true, rank: 2 }),
+  N('w_last', 'iron', 26, 26, 'Last Stand', 'KEYSTONE: once per dungeon visit, a killing blow leaves you at 1 HP, invulnerable for 2s.', { cheatDeath: 1 }, { req: ['w_unyield'], key: true, rank: 3 }),
+  N('w_colossus', 'iron', 19, 12, 'Colossus', 'KEYSTONE: +60 max HP, +20% damage, +10% defense.', { maxHp: 60, damagePct: 20, defense: 10 }, { req: ['w_exec', 'w_last'], key: true, rank: 4, points: 3 }),
 
   // ======================= PATH OF ASH (x 38-62)
   N('m_kindle', 'ash', 50, 138, 'Kindling', 'Hits set foes alight: 3 fire damage per second per rank.', { burnDps: 3 }, { max: 3, req: ['root'] }),
@@ -70,9 +70,9 @@ export const SKILLS = [
   N('m_distill', 'ash', 62, 54, 'Distillation', 'Flasks heal 25% more; +10 max stamina.', { flaskPct: 25, maxStamina: 10 }, { req: ['m_smoke'] }),
   N('m_wildfire', 'ash', 44, 40, 'Wildfire', 'Ember bursts deal +12 damage; +3% crit.', { emberBurst: 12, critChance: 3 }, { req: ['m_brand', 'm_heat'] }),
   N('m_ashskin', 'ash', 56, 40, 'Ashen Skin', '5% less damage taken, regenerate 0.5 HP/s.', { defense: 5, regen: 0.5 }, { req: ['m_heat', 'm_distill'] }),
-  N('m_pyre', 'ash', 44, 26, 'Pyre', 'KEYSTONE: every 5th hit releases a fire nova (35 dmg, 4m).', { pyre: 35 }, { req: ['m_wildfire'], key: true, rank: 3 }),
-  N('m_phoenix', 'ash', 56, 26, 'Phoenix Brand', 'KEYSTONE: burning enemies spread their flames when they die.', { burnSpread: 1 }, { req: ['m_ashskin'], key: true, rank: 4 }),
-  N('m_avatar', 'ash', 50, 12, 'Ashen Avatar', 'KEYSTONE: +8 burn damage, +15% damage, novas +20 damage.', { burnDps: 8, damagePct: 15, pyre: 20 }, { req: ['m_pyre', 'm_phoenix'], key: true, rank: 5, points: 3 }),
+  N('m_pyre', 'ash', 44, 26, 'Pyre', 'KEYSTONE: every 5th hit releases a fire nova (35 dmg, 4m).', { pyre: 35 }, { req: ['m_wildfire'], key: true, rank: 2 }),
+  N('m_phoenix', 'ash', 56, 26, 'Phoenix Brand', 'KEYSTONE: burning enemies spread their flames when they die.', { burnSpread: 1 }, { req: ['m_ashskin'], key: true, rank: 3 }),
+  N('m_avatar', 'ash', 50, 12, 'Ashen Avatar', 'KEYSTONE: +8 burn damage, +15% damage, novas +20 damage.', { burnDps: 8, damagePct: 15, pyre: 20 }, { req: ['m_pyre', 'm_phoenix'], key: true, rank: 4, points: 3 }),
 
   // ======================= PATH OF SHADOW (x 70-94)
   N('r_fleet', 'shadow', 82, 138, 'Fleet Foot', '+6% move speed per rank.', { speedPct: 6 }, { max: 3, req: ['root'] }),
@@ -93,9 +93,9 @@ export const SKILLS = [
   N('r_assassin', 'shadow', 94, 54, 'Assassin', '+30% critical damage.', { critDmgPct: 30 }, { req: ['r_opport'] }),
   N('r_ghost', 'shadow', 76, 40, 'Ghost Step', 'Rolls go 25% further and cost 10% less.', { rollDistPct: 25, rollCostPct: 10 }, { req: ['r_wind', 'r_hamstring'] }),
   N('r_reaper', 'shadow', 88, 40, 'Reaper', 'Kills restore 15 stamina and 3 HP.', { killStamina: 15, killHeal: 3 }, { req: ['r_hamstring', 'r_assassin'] }),
-  N('r_dance', 'shadow', 76, 26, 'Death\'s Dance', 'KEYSTONE: after a kill, your next hit is always critical.', { deathDance: 1 }, { req: ['r_ghost'], key: true, rank: 3 }),
-  N('r_phantom', 'shadow', 88, 26, 'Phantom Blade', 'KEYSTONE: rolling through enemies cuts them for 30 damage.', { rollDamage: 30 }, { req: ['r_reaper'], key: true, rank: 4 }),
-  N('r_sovereign', 'shadow', 82, 12, 'Night Sovereign', 'KEYSTONE: +10% crit, +15% attack speed, +10% move speed.', { critChance: 10, attackSpeedPct: 15, speedPct: 10 }, { req: ['r_dance', 'r_phantom'], key: true, rank: 5, points: 3 }),
+  N('r_dance', 'shadow', 76, 26, 'Death\'s Dance', 'KEYSTONE: after a kill, your next hit is always critical.', { deathDance: 1 }, { req: ['r_ghost'], key: true, rank: 2 }),
+  N('r_phantom', 'shadow', 88, 26, 'Phantom Blade', 'KEYSTONE: rolling through enemies cuts them for 30 damage.', { rollDamage: 30 }, { req: ['r_reaper'], key: true, rank: 3 }),
+  N('r_sovereign', 'shadow', 82, 12, 'Night Sovereign', 'KEYSTONE: +10% crit, +15% attack speed, +10% move speed.', { critChance: 10, attackSpeedPct: 15, speedPct: 10 }, { req: ['r_dance', 'r_phantom'], key: true, rank: 4, points: 3 }),
 
   // ======================= CROSSROADS (hybrids between neighbouring paths)
   N('h_temper', 'hybrid', 34, 103, 'Tempered Flame', 'Iron + Ash: 3% lifesteal, +2 burn damage.', { lifesteal: 3, burnDps: 2 }, { req: ['w_blood', 'm_flask'] }),

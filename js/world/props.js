@@ -396,7 +396,12 @@ export function npc(area, def) {
   });
   (area.npcs || (area.npcs = [])).push(n);
   if (def.name && def.talk !== false) {
-    const it = interactable(area, n.pos, 2.2, `Talk to ${def.name}`, () => area.game.hud.speak(def.line ? `${def.name}: "${def.line}"` : area.game.renown.greeting(def.name)), true);
+    const it = interactable(area, n.pos, 2.2, `Talk to ${def.name}`, () => {
+      const g = area.game;
+      if (def.note && !g.journal.has(def.note) && Math.random() < 0.5) { g.journal.add(def.note); return; }
+      const line = def.lines ? def.lines[Math.floor(Math.random() * def.lines.length)] : def.line;
+      g.hud.speak(line ? `${def.name}: "${line}"` : g.renown.greeting(def.name));
+    }, true);
     n.talk = it;
   }
   return n;
@@ -701,4 +706,17 @@ export function gate(area, o) {
   };
   area.animated.push({ update(dt) { if (t >= 0 && t < 1) { t = Math.min(1, t + dt * 0.5); bars.position.y = (o.y || 0) - t * 4.3; if (Math.random() < 0.5) area.dust.emit(bars.position.x, (o.y || 0) + 0.2, bars.position.z, (Math.random() - 0.5), 0.6, (Math.random() - 0.5), 1, [0.3, 0.28, 0.25], 0.1); } } });
   return p;
+}
+
+/** Searchable remains of an earlier Wanderer: bones, a rag, and a note. */
+export function remains(area, x, y, z, tags) {
+  for (let i = 0; i < 6; i++) mesh(area, 'bone', boxGeo(0.06, 0.06, 0.45, 0.5), trs(x + (Math.random() - 0.5) * 0.9, y + 0.05, z + (Math.random() - 0.5) * 0.9, [0, Math.random() * 6, 0]), { shade: null });
+  mesh(area, 'bone', boxGeo(0.22, 0.22, 0.26, 0.5), trs(x + 0.3, y + 0.12, z, 0.4), { shade: null });
+  box(area, 'cloth', x - 0.2, y + 0.03, z + 0.1, 0.8, 0.04, 0.6, { collide: false, shade: null, rot: 0.5 });
+  const it = interactable(area, new THREE.Vector3(x, y, z), 1.8, 'Search the remains', () => {
+    it.enabled = false;
+    area.game.journal.readFor(...tags);
+    area.game.state.addCurrency(3 + Math.floor(Math.random() * 8));
+  });
+  return it;
 }

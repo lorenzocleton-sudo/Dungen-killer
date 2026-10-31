@@ -28,6 +28,14 @@ The game uses whichever input you touched last and shows matching hints. The
 touch controls only appear in touch mode. You can set look sensitivity, invert
 Y, always-day-in-village and the minimap in the menu.
 
+## The world
+
+The world burned. One town survived: **Emberwick**, held still inside one
+stolen hour by **the Hearth**. Beyond the portals lie the Deeps: the remains of
+the old realm of Aurelan. You are a Wanderer, bound to the Hearth: when you die
+it rebuilds you from ash, but what you found below (warm loot) stays below. All
+lore text lives in `data/lore.js`; notes you find are kept in the Lore Journal.
+
 ## Game rules
 
 * **Stamina**: sprinting, attacking and rolling cost stamina; the dodge roll has
@@ -40,8 +48,9 @@ Y, always-day-in-village and the minimap in the menu.
 * **Main dungeon** (green portal): 5 numbered levels, each ending in a boss
   arena. Killing the boss opens two gates: *Descend* (harder level) or
   *Return* (to town, keeping your loot).
-* **Random dungeons** (red portal): a new layout every visit in one of five
-  biomes, a 1-in-3 chance of an elder mini-boss, and a reward chest rolled
+* **Random dungeons** (red portal): a new layout every visit in one of six
+  biomes: the Shifting Depths (crypt corridors), and open/cave generators for the
+  Weeping Wood, Verdant Maw, Drowned Quarter, Rimewastes and Kilnworks, a 1-in-3 chance of an elder mini-boss, and a reward chest rolled
   rarest first (1/500 Legendary, 1/50 Rare, 1/5 Special) with saved pity
   counters (guaranteed Rare after 50 runs without one, Legendary after 300).
 * **The King's Castle**: the gate at the north end of town (needs Wanderer).
@@ -97,6 +106,12 @@ js/world/town.js              town layout + DAY/NIGHT palettes
 js/world/dungeon.js           dungeon builder (ASCII map or generated cells), flow-field pathing
 js/world/dungeonGen.js        random dungeon generator (rooms, corridors, stairs, boss arena, validation)
 js/world/biomes.js            dungeon biomes + main-level enemy mix
+js/world/outdoorGen.js        open/cave layout generators (clearings, rivers, caves, lava)
+js/world/outdoor.js           terrain, natural instanced borders, biome features
+js/engine/nav.js              nav grid from collision + A* for enemies
+js/systems/journal.js         Lore Journal
+js/systems/ending.js          ending stub (Hearth choice)
+data/lore.js                  all lore text
 js/world/castle.js            the King's castle (rooms, guards gated by renown)
 js/world/homes.js             furnished house interiors
 js/world/props.js             torches, portals, houses, well, NPCs, ...

@@ -12,7 +12,7 @@ import { generateOutdoor, T, WALKABLE, TILE } from './outdoorGen.js';
 import { BIOMES } from './biomes.js';
 import { litMaterial, basicMaterial, spriteMaterial } from '../engine/materials.js';
 import { boxGeo, trs } from '../engine/geometry.js';
-import { box, mesh, portal, fire, chest } from './props.js';
+import { box, mesh, portal, fire, chest, remains } from './props.js';
 import { ENEMY_TYPES } from '../entities/enemyTypes.js';
 
 /** Collects instance transforms per (geometry, material) and builds InstancedMeshes. */
@@ -329,6 +329,9 @@ export class OutdoorDungeon extends Area {
     chest(A, xp.x, xp.y, xp.z, 0, () => this.game.rewards.open(this.rewardRarity, new THREE.Vector3(xp.x, xp.y, xp.z + 1.5)), { glow: this.game.rewards.color(this.rewardRarity) });
     this.chestRarity = this.rewardRarity;
     fire(A, xp.x + 2.2, xp.y + 0.1, xp.z + 1, { size: 0.5 });
+
+    // remains of earlier Wanderers in two clearings
+    L.clearings.filter((c) => !c.entrance && !c.exit).slice(0, 2).forEach((c) => { const p = at(c); remains(A, p.x + 2, p.y, p.z - 1.5, [this.biomeId, 'any']); });
 
     // ---------------------------------------------------------- enemies
     const tbl = B.enemies;
