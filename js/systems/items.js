@@ -106,6 +106,7 @@ export const DROP_TABLES = {
   brute: [['black_iron', 0.8], ['gold_tooth', 0.3], ['hauberk', 0.06], ['war_axe', 0.05]],
   archer: [['bone_shard', 0.45], ['hunter_gloves', 0.03], ['ashen_flask', 0.06]],
   boss: [['ember_relic', 1], ['black_iron', 1], ['ashen_flask', 1], ['gold_tooth', 0.8], ['ember_ring', 0.3], ['hauberk', 0.25], ['ash_blade', 0.15]],
+  home: [['ashen_flask', 0.25], ['bone_shard', 0.4], ['gold_tooth', 0.15], ['grave_wax', 0.3], ['tattered_cloth', 0.2]],
   chest: [['ashen_flask', 0.8], ['gold_tooth', 0.6], ['ember_relic', 0.35], ['hunter_gloves', 0.15], ['ember_ring', 0.08], ['hauberk', 0.08]],
 };
 

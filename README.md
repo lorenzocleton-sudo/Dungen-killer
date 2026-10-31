@@ -16,17 +16,38 @@ vendored in `lib/`, so the game works offline and on GitHub Pages.
 
 ## Controls
 
-| | Move | Sprint (2×) | Look | Hit | Use / talk | Flask | Inventory | Menu |
-|---|---|---|---|---|---|---|---|---|
-| Keyboard + mouse | WASD | hold Shift, or double-tap W | mouse (click to lock) | click / Space | E | R | I / Tab | Esc |
-| Touch | left-thumb joystick | RUN button (toggle) | swipe right side | HIT | USE (appears when near) | FLASK | ◈ button | ☰ |
-| Gamepad | left stick | click L3 (toggle on/off) | right stick | A / RT | Y | LB | Back/Select | Start |
+| | Move | Sprint | Look | Hit | Roll | Use | Flask | Inventory | Map | Menu |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Keyboard + mouse | WASD | Shift / double-tap W | mouse | click / F | Space | E | R | I / Tab | M | Esc |
+| Touch | left joystick | RUN (toggle) | swipe right side | HIT | ROLL | USE | FLASK | ◈ | tap minimap | ☰ |
+| Gamepad | left stick | L3 (toggle) | right stick | A / RT | B | Y | LB | Back | R3 | Start |
+
+**Admin / debug menu:** F1, tap the HUD status line 5 times, or hold LB+RB and press Start.
 
 The game uses whichever input you touched last and shows matching hints. The
 touch controls only appear in touch mode. You can set look sensitivity, invert
 Y, always-day-in-village and the minimap in the menu.
 
 ## Game rules
+
+* **Stamina**: sprinting, attacking and rolling cost stamina; the dodge roll has
+  invulnerability frames.
+* **Renown** (status) comes only from deeds: monsters slain (bosses count as
+  feats), skills learned, lifetime ashes earned and the deepest main-dungeon
+  level. It never decreases. Ranks: Nobody, Wanderer, Sellsword, Slayer,
+  Champion, Hero of the Realm, King's Blade. Higher ranks unlock shop discounts
+  and stock, keystone skills, and the castle's rooms.
+* **Main dungeon** (green portal): 5 numbered levels, each ending in a boss
+  arena. Killing the boss opens two gates: *Descend* (harder level) or
+  *Return* (to town, keeping your loot).
+* **Random dungeons** (red portal): a new layout every visit in one of five
+  biomes, a 1-in-3 chance of an elder mini-boss, and a reward chest rolled
+  rarest first (1/500 Legendary, 1/50 Rare, 1/5 Special) with saved pity
+  counters (guaranteed Rare after 50 runs without one, Legendary after 300).
+* **The King's Castle**: the gate at the north end of town (needs Wanderer).
+  Guards open the great hall and throne room as your renown grows.
+* **Homes**: every house can be entered: rest in beds, search chests (refill
+  daily), read bookshelves, eat from the pot.
 
 * **The Ashen Market** (west building, walk inside): buy flasks, weapons, armour
   and rings; sell loot for ashes.
@@ -74,16 +95,23 @@ js/player/weapon.js           first-person sword + swing timeline
 js/world/area.js              base Area class (scene, collision, lights, portals)
 js/world/town.js              town layout + DAY/NIGHT palettes
 js/world/dungeon.js           dungeon builder (ASCII map or generated cells), flow-field pathing
-js/world/dungeonGen.js        random dungeon generator (rooms, corridors, stairs, validation)
+js/world/dungeonGen.js        random dungeon generator (rooms, corridors, stairs, boss arena, validation)
+js/world/biomes.js            dungeon biomes + main-level enemy mix
+js/world/castle.js            the King's castle (rooms, guards gated by renown)
+js/world/homes.js             furnished house interiors
 js/world/props.js             torches, portals, houses, well, NPCs, ...
 js/world/sky.js               sky dome, clouds, stars, moon
 js/entities/enemyTypes.js     enemy stats + low-poly models (hollow, ghoul, knight)
 js/entities/enemy.js          generic enemy AI (idle/alert/chase/windup/strike/recover/stagger/dead)
 js/entities/enemyManager.js   spawn/update/cleanup
+js/entities/bosses.js         boss brain: telegraphed attack patterns, phase 2
+js/entities/projectiles.js    enemy projectiles + ground telegraphs
 js/systems/combat.js          player hit detection, damage numbers, kill rewards
 js/systems/items.js           item database, shop stock, drop tables
 js/systems/stats.js           derived stats (base + gear + skills)
 js/systems/loot.js            drops and pickups
+js/systems/renown.js          renown score, ranks, greetings
+js/systems/rewards.js         reward-chest rarity roll + pity
 js/systems/state.js           SAVED / RUN state + localStorage
 js/systems/clock.js           world clock + day/night phase
 js/systems/skills.js          skill tree (iron / ash / shadow), costs, requirements
@@ -91,6 +119,8 @@ js/systems/settings.js        user settings
 js/ui/hud.js, js/ui/menu.js   HUD and settings menu
 js/ui/screens.js              inventory, shop and trainer panels (drawn skill tree)
 js/ui/nav.js                  gamepad/arrow-key spatial navigation for panels
+js/ui/minimap.js              minimap + full map with fog of war
+js/ui/admin.js                hidden admin/debug menu
 ```
 
 ### Extending

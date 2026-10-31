@@ -166,7 +166,7 @@ export class Dungeon extends Area {
         for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
           const n = this.at(r + dr, c + dc);
           if (n.type === 'wall') continue;
-          lo = Math.min(lo, n.minY); hi = Math.max(hi, n.ceilY);
+          lo = Math.min(lo, n.minY); hi = Math.max(hi, n.ceilY + (n.sky ? 3.5 : 0));
         }
         if (lo === Infinity) continue;
         const nearHall = [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dc, dr]) => this.at(r + dr, c + dc).hall);
@@ -194,11 +194,11 @@ export class Dungeon extends Area {
         }
       }
       // ---- ceiling
-      if (!B.open) box(A, B.ceiling, cx, s.ceilY + 0.25, cz, CELL, 0.5, CELL, { worldUV: 2.5, collide: false, shade: () => 0.6 });
+      if (!B.open && !s.sky) box(A, B.ceiling, cx, s.ceilY + 0.25, cz, CELL, 0.5, CELL, { worldUV: 2.5, collide: false, shade: () => 0.6 });
       // ---- lintels where neighbouring ceilings differ (right + down to avoid duplicates)
       for (const [dc, dr] of [[1, 0], [0, 1]]) {
         const n = this.at(r + dr, c + dc);
-        if (B.open || n.type === 'wall' || Math.abs(n.ceilY - s.ceilY) < 0.01) continue;
+        if (B.open || s.sky || n.sky || n.type === 'wall' || Math.abs(n.ceilY - s.ceilY) < 0.01) continue;
         const lo = Math.min(n.ceilY, s.ceilY), hi = Math.max(n.ceilY, s.ceilY);
         const bx = cx + dc * CELL / 2, bz = cz + dr * CELL / 2;
         box(A, B.wall, bx, (lo + hi) / 2 + 0.25, bz, dc ? 0.4 : CELL, hi - lo + 0.5, dc ? CELL : 0.4, { worldUV: 2.5, collide: false, shade: () => 0.55 });
@@ -213,12 +213,12 @@ export class Dungeon extends Area {
     }
 
     this._torches();
-    this._decorate();
+    if (this.decorate) this.decorate(); else this._decorate();
 
     // portal back to town, against the north wall of the entrance room
     let pr = 0, pc = 0;
     for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (this.grid[r][c].portal) { pr = r; pc = c; }
-    portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', spawn: this.returnSpawn, color: 'blue', label: 'Return to Ashen Hollow' });
+    if (!this.noAutoPortal) portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', spawn: this.returnSpawn, color: 'blue', label: 'Return to Ashen Hollow' });
     this.spawns.portal = { pos: new THREE.Vector3((pc + 0.5) * CELL, 0, (pr + 2.7) * CELL), yaw: Math.PI };
     if (this.layout && this.layout.exit) {
       // face the way out of the entrance room

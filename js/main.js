@@ -13,6 +13,7 @@ import { GameState } from './systems/state.js';
 import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
 import { MainDungeon, RandomDungeon } from './world/dungeon.js';
+import { Castle } from './world/castle.js';
 import { BIOME_IDS } from './world/biomes.js';
 import { Projectiles } from './entities/projectiles.js';
 import { Rewards } from './systems/rewards.js';
@@ -31,6 +32,7 @@ const AREA_FACTORIES = {
   town: (g) => new Town(g),
   dungeon: (g) => new MainDungeon(g),
   depths: (g) => new RandomDungeon(g),
+  castle: (g) => new Castle(g),
 };
 export function registerArea(id, factory) { AREA_FACTORIES[id] = factory; }
 const HOSTILE_AREAS = { dungeon: true, depths: true };

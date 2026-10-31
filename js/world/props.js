@@ -377,7 +377,7 @@ export function npc(area, def) {
   g.position.set(def.x, def.y || 0, def.z);
   g.rotation.y = def.yaw || 0;
   area.scene.add(g);
-  area.collision.addCentered(def.x, 0.9, def.z, 0.8, 1.8, 0.8, 'npc');
+  area.collision.addCentered(def.x, (def.y || 0) + 0.9, def.z, 0.8, 1.8, 0.8, 'npc');
   const baseYaw = def.yaw || 0;
   const phase = Math.random() * 10;
   const n = { def, group: g, pos: new THREE.Vector3(def.x, 0, def.z) };
@@ -576,6 +576,13 @@ export function hero(area, def) {
   if (L.helm === 'great') { B(0.3, 0.36, 0.32, M.armor, 0, 0.12, 0, head); B(0.22, 0.03, 0.02, basicMaterial(0x040302), 0, 0.15, 0.165, head); }
   else if (L.helm === 'hood') { B(0.24, 0.26, 0.24, M.skin, 0, 0.1, 0, head); const hd = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.5, 6), M.cape); hd.position.set(0, 0.24, -0.03); head.add(hd); B(0.18, 0.12, 0.03, basicMaterial(0x0a0806), 0, 0.12, 0.12, head); }
   else if (L.helm === 'hat') { B(0.24, 0.26, 0.24, M.skin, 0, 0.1, 0, head); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 8), M.cape); brim.position.y = 0.25; head.add(brim); const top = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.55, 7), M.cape); top.position.set(0, 0.52, -0.04); top.rotation.x = -0.25; head.add(top); B(0.24, 0.12, 0.05, litMaterial('cloth', { color: 0x777777 }), 0, -0.02, 0.1, head); }
+  else if (L.helm === 'crown') {
+    B(0.24, 0.28, 0.24, M.skin, 0, 0.1, 0, head);
+    B(0.26, 0.14, 0.26, litMaterial('cloth', { color: 0xdddddd }), 0, -0.04, 0.02, head); // beard
+    const gold = basicMaterial(0xb89038);
+    B(0.28, 0.07, 0.28, gold, 0, 0.27, 0, head);
+    for (const [px, pz] of [[-0.11, 0.11], [0.11, 0.11], [-0.11, -0.11], [0.11, -0.11], [0, 0.13]]) B(0.05, 0.12, 0.05, gold, px, 0.35, pz, head);
+  }
   else { B(0.26, 0.28, 0.26, M.armor, 0, 0.11, 0, head); B(0.2, 0.06, 0.02, basicMaterial(0x040302), 0, 0.12, 0.135, head); }
   if (L.plume) { const pl = B(0.05, 0.22, 0.32, litMaterial(L.plume), 0, 0.38, -0.05, head); pl.rotation.x = 0.3; }
   // arms
@@ -612,11 +619,11 @@ export function hero(area, def) {
   g.scale.setScalar(L.scale || 1);
   if (def.pose === 'sit') { hips.position.y = 0.5; legL.rotation.x = legR.rotation.x = -1.4; }
   if (def.pose === 'lean') { torso.rotation.x = -0.12; armR.rotation.x = -0.25; }
-  g.position.set(def.x, 0, def.z);
+  g.position.set(def.x, def.y || 0, def.z);
   g.rotation.y = def.yaw || 0;
   area.scene.add(g);
-  const pos = new THREE.Vector3(def.x, 0, def.z);
-  const blocker = def.path ? null : area.collision.addCentered(def.x, 0.9, def.z, 0.8, 1.8, 0.8, 'npc');
+  const pos = new THREE.Vector3(def.x, def.y || 0, def.z);
+  const blocker = def.path ? null : area.collision.addCentered(def.x, (def.y || 0) + 0.9, def.z, 0.8, 1.8, 0.8, 'npc');
   void blocker;
   const phase = Math.random() * 10;
   let wp = 0, wait = 0;
@@ -639,7 +646,7 @@ export function hero(area, def) {
           const sw = Math.sin(t * 6 + phase);
           legL.rotation.x = sw * 0.5; legR.rotation.x = -sw * 0.5; armL.rotation.x = -sw * 0.3; armR.rotation.x = sw * 0.3 + (L.weapon === 'staff' ? -0.5 : 0);
         }
-        g.position.set(pos.x, 0, pos.z);
+        g.position.set(pos.x, pos.y, pos.z);
       } else {
         const dx = player.pos.x - def.x, dz = player.pos.z - def.z;
         if (def.pose !== 'sit' && dx * dx + dz * dz < 16) {
@@ -650,7 +657,7 @@ export function hero(area, def) {
     },
   });
   (area.npcs || (area.npcs = [])).push({ def, group: g, pos });
-  if (def.name) interactable(area, pos, 2.4, `Talk to ${def.name}`, () => area.game.hud.speak(area.game.renown.heroComment(def.name)), true);
+  if (def.name && def.talk !== false) interactable(area, pos, 2.4, `Talk to ${def.name}`, () => area.game.hud.speak(area.game.renown.heroComment(def.name)), true);
   return g;
 }
 
@@ -660,6 +667,8 @@ const HERO_LOOKS = {
   pyromancer: { armor: 'clothBrown', under: 'cloth', cape: 'clothRed', trim: 'ironDark', helm: 'hood', weapon: 'staff', orb: 0xff7a30, scale: 1.0 },
   hunter: { armor: 'clothBrown', under: 'woodDark', cape: 'dirtMoss', trim: 'woodDark', helm: 'hood', weapon: 'bow', scale: 1.0 },
   paladin: { armor: 'iron', under: 'ironDark', cape: 'cloth', trim: 'ironPlate', helm: 'open', plume: 'cloth', weapon: 'shield', orb: 0xe8d090, bulky: true, scale: 1.1, tabard: 'cloth' },
+  king: { armor: 'clothRed', under: 'clothRed', cape: 'clothRed', trim: 'iron', helm: 'crown', weapon: 'staff', orb: 0xf0d080, bulky: true, scale: 1.15, tabard: 'cloth' },
+  guard: { armor: 'ironPlate', under: 'ironDark', cape: 'clothRed', trim: 'ironDark', helm: 'great', plume: 'clothRed', weapon: 'shield', orb: 0xc8a040, bulky: true, scale: 1.1, tabard: 'clothRed' },
   sellsword: { armor: 'clothBrown', under: 'ironDark', cape: 'clothBrown', trim: 'iron', helm: 'open', weapon: 'twin', scale: 1.0 },
 };
 

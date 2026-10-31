@@ -9,6 +9,7 @@ import {
   box, mesh, wallTorch, postTorch, portal, house, barrel, crate, cart, well,
   gravestone, deadTree, npc, groundAO, fire, hollowHouse, interactable, hero, bonfire, anvil, trainingDummy,
 } from './props.js';
+import { furnishHome } from './homes.js';
 
 const HALF = 34;     // wall centre line
 const WALL_H = 6.5;
@@ -162,16 +163,30 @@ export class Town extends Area {
       { x: 27, z: 11, w: 8, d: 6, door: 'w', h: 3.8, windows: [['w', -1.8], ['n', 1.5]] },
       { x: -22, z: 23, w: 8, d: 6, door: 'e', windows: [['n', 1.5], ['e', -1.6]] },
       { x: 22, z: 24, w: 7, d: 6, door: 'w', h: 3.6, chimney: false, windows: [['n', -1]] },
-      { x: -9, z: 28, w: 6, d: 5, door: 'n', h: 3.6, windows: [['n', 1.8]] },
-      { x: 11, z: 28, w: 6, d: 5, door: 'n', h: 3.6, windows: [['n', -1.8]] },
-      { x: -28.5, z: -8, w: 5, d: 7, door: 'e', h: 3.6, windows: [['e', 2]] },
-      { x: 28.5, z: -13, w: 5, d: 6, door: 'w', h: 3.6, chimney: false, windows: [] },
+      { x: -9, z: 28, w: 7, d: 5.5, door: 'n', h: 3.8, windows: [['n', 1.8]] },
+      { x: 11, z: 28, w: 7, d: 5.5, door: 'n', h: 3.8, windows: [['n', -1.8]] },
+      { x: -28.5, z: -8, w: 6, d: 7, door: 'e', h: 3.8, windows: [['e', 2]] },
+      { x: 28.5, z: -13, w: 6, d: 7, door: 'w', h: 3.8, chimney: false, windows: [] },
     ];
-    for (const h of H) {
-      const door = house(A, h);
-      const side = door.nz !== 0 ? [1.1, 0] : [0, 1.1];
-      wallTorch(A, door.x + side[0] - door.nx * 0.02, 2.4, door.z + side[1] - door.nz * 0.02, Math.atan2(door.nx, door.nz));
-    }
+    // every house can be entered (step 11): furnished interiors
+    H.forEach((h, i) => {
+      const inner = hollowHouse(A, { ...h, h: Math.max(3.8, h.h || 4), furnish: (a, r) => furnishHome(a, r, i) });
+      this.interiors.push(inner);
+    });
+
+    // ---------------------------------------------------------- the King's castle gate (north wall)
+    for (const s of [-1, 1]) box(A, 'stoneWall', s * 2.6, 4.5, -HALF + 1.4, 1.2, 9, 1.4, { worldUV: 2 });
+    box(A, 'stoneWall', 0, 8.2, -HALF + 1.4, 6.4, 1.6, 1.4, { worldUV: 2, collide: false });
+    box(A, 'woodDark', 0, 2.8, -HALF + 1.0, 4.0, 5.6, 0.25, { tex: 2.8 });
+    for (const s of [-1, 1]) box(A, 'clothRed', s * 2.6, 5.5, -HALF + 2.15, 1.0, 3.0, 0.05, { collide: false, shade: () => 0.85 });
+    mesh(A, 'roof', new THREE.ConeGeometry(1.2, 2, 4), trs(-2.6, 10, -HALF + 1.4, Math.PI / 4), { shade: null });
+    mesh(A, 'roof', new THREE.ConeGeometry(1.2, 2, 4), trs(2.6, 10, -HALF + 1.4, Math.PI / 4), { shade: null });
+    interactable(A, new THREE.Vector3(0, 0, -HALF + 2.2), 2.6, 'Enter the King\'s Castle', () => {
+      const g = this.game;
+      if (g.renown.rankIndex < 1) { g.hud.speak('Castle Guard: "The King receives no nobodies. Earn a name in the catacombs first." (needs renown rank: Wanderer)'); return; }
+      g.travelTo('castle', 'start');
+    });
+    this.spawns.castle = { pos: new THREE.Vector3(0, 0, -29.5), yaw: Math.PI };
 
     // ---------------------------------------------------------- square + bonfire
     well(A, 0, 3);
