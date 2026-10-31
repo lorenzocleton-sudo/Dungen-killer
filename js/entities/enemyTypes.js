@@ -6,6 +6,7 @@
 //   onHit: { slow: seconds }       renown: kill weight for the Renown system
 import * as THREE from '../../lib/three.module.min.js';
 import { litMaterial, basicMaterial, spriteMaterial } from '../engine/materials.js';
+import { buildWeapon, buildBow, handMount } from './weaponModels.js';
 
 const base = (o) => ({ turn: 6, giveUp: 28, strike: 0.15, recover: 0.7, poise: 0, lunge: 2.5, ...o });
 
@@ -67,7 +68,7 @@ function glowAt(parent, color, x, y, z, s = 0.8, op = 0.6) {
   const g = new THREE.Sprite(spriteMaterial('glow', color)); g.scale.set(s, s, 1); g.material.opacity = op; g.position.set(x, y, z); parent.add(g); return g;
 }
 
-function buildHollow() {
+function buildHollow(o = {}) {
   const M = mats(['flesh', 'cloth', 'iron']);
   const root = new THREE.Group();
   const hips = new THREE.Group(); hips.position.y = 0.95; root.add(hips);
@@ -83,9 +84,7 @@ function buildHollow() {
   eyes(head, 0xc8501a, 0.13, 0.14);
   const armL = limb(0.11, 0.7, 0.12, M.flesh, -0.32, 0.58, 0); torso.add(armL);
   const armR = limb(0.11, 0.7, 0.12, M.flesh, 0.32, 0.58, 0); torso.add(armR);
-  const sword = new THREE.Group(); sword.position.y = -0.68; armR.add(sword);
-  const blade = boxM(0.05, 0.75, 0.02, M.iron); blade.position.set(0, -0.05, 0.36); blade.rotation.x = Math.PI / 2; sword.add(blade);
-  sword.add(boxM(0.22, 0.04, 0.05, M.iron));
+  armR.add(handMount(buildWeapon(o.weapon || (Math.random() < 0.35 ? 'axe' : 'sword'), { tint: 0x9a8a78 }), 0.68));
   return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.55, hipY: 0.95, lean: 0.25 };
 }
 
@@ -133,9 +132,7 @@ function buildKnight(o = {}) {
   const armR = limb(0.16, 0.72, 0.17, M.ironDark, 0.42, 0.6, 0); torso.add(armR);
   const shield = boxM(0.08, 0.95, 0.6, M.ironPlate); shield.position.set(-0.08, -0.45, 0.25); armL.add(shield);
   armL.rotation.set(-0.5, 0, 0.1);
-  const sword = new THREE.Group(); sword.position.y = -0.7; armR.add(sword);
-  const blade = boxM(0.09, o.cape ? 1.7 : 1.35, 0.025, M.iron); blade.position.set(0, -0.05, o.cape ? 0.9 : 0.72); blade.rotation.x = Math.PI / 2; sword.add(blade);
-  sword.add(boxM(0.36, 0.06, 0.07, M.ironDark));
+  armR.add(handMount(buildWeapon(o.weapon || (o.cape ? 'greatsword' : 'longsword')), 0.7));
   return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 2.2, hipY: 0.95, lean: 0.08, fixedLeft: true };
 }
 
@@ -261,13 +258,9 @@ function buildBrute(o = {}) {
   if (o.drowned) { for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.3, 4), M.iron); c.position.set(-0.1 + i * 0.1, 0.25, 0); head.add(c); } glowAt(head, 0x40c0a0, 0, 0, 0.2, 0.8, 0.5); }
   const armL = limb(0.22, 0.8, 0.24, under, -0.5, 0.7, 0); torso.add(armL);
   const armR = limb(0.22, 0.8, 0.24, under, 0.5, 0.7, 0); torso.add(armR);
-  if (o.drowned) {
-    const shaft = boxM(0.07, 2.2, 0.07, M.iron); shaft.position.set(0, -0.8, 0.1); armR.add(shaft);
-    for (let i = -1; i <= 1; i++) { const p = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.35, 4), M.iron); p.position.set(i * 0.12, -1.95, 0.1); p.rotation.x = Math.PI; armR.add(p); }
-  } else {
-    const handle = boxM(0.08, 1.1, 0.08, M.ironDark); handle.position.set(0, -0.8, 0.1); armR.add(handle);
-    const headM = boxM(0.5, 0.36, 0.36, M.iron); headM.position.set(0, -1.35, 0.1); armR.add(headM);
-  }
+  const wpn = buildWeapon(o.weapon || (o.drowned ? 'trident' : 'hammer'));
+  wpn.scale.setScalar(o.drowned ? 1.3 : 1.15);
+  armR.add(handMount(wpn, 0.8));
   return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 2.2, hipY: 0.85, lean: 0.2 };
 }
 
@@ -286,9 +279,12 @@ function buildArcher() {
   eyes(head, 0xe0d070, 0.03, 0.125, 0.05, 0.035);
   const armL = limb(0.06, 0.66, 0.06, M.bone, -0.24, 0.5, 0); torso.add(armL);
   const armR = limb(0.06, 0.66, 0.06, M.bone, 0.24, 0.5, 0); torso.add(armR);
-  const bow = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.025, 4, 10, Math.PI * 0.9), litMaterial('woodDark'));
-  bow.position.set(0, -0.6, 0.05); bow.rotation.set(0, Math.PI / 2, Math.PI / 2); armL.add(bow);
-  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.6, hipY: 0.95, lean: 0.1 };
+  // the bow is parented to the LEFT hand; bowMount cancels the arm's pitch so
+  // the bow always stands vertical (limbs curving toward the target)
+  const bow = buildBow({ len: 1.0 });
+  const bowMount = new THREE.Group(); bowMount.position.y = -0.66; bowMount.rotation.order = 'ZYX'; bowMount.userData.weapon = true; armL.add(bowMount);
+  bowMount.add(bow.group);
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.6, hipY: 0.95, lean: 0.1, bow, bowMount, archer: true };
 }
 
 function buildAbbot() {

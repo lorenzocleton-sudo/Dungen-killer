@@ -3,6 +3,7 @@
 // never clips into walls). The model changes with the equipped weapon.
 import * as THREE from '../../lib/three.module.min.js';
 import { litMaterial, basicMaterial } from '../engine/materials.js';
+import { buildWeapon } from '../entities/weaponModels.js';
 
 const POSES = {
   rest: { p: [0.36, -0.42, -0.66], r: [-0.6, 0.25, -0.3] },
@@ -16,30 +17,16 @@ const BASE_DURATION = 0.48;
 // ------------------------------------------------------------ weapon models
 const box = (w, h, d, m, y = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.y = y; return o; };
 
-export function buildWeaponModel(model) {
+export function buildWeaponModel(model, o = {}) {
   const g = new THREE.Group();
-  const iron = litMaterial('iron'), dark = litMaterial('ironDark'), grip = litMaterial('woodDark');
-  const hand = box(0.1, 0.12, 0.11, litMaterial('clothBrown'));
+  const hand = box(0.1, 0.12, 0.11, litMaterial(o.sleeve || 'clothBrown', o.dye != null ? { color: o.dye } : {}));
   g.add(hand);
-  if (model === 'axe') {
-    g.add(box(0.045, 0.95, 0.045, grip, 0.3));
-    const head = box(0.03, 0.26, 0.3, iron, 0.66); head.position.z = 0.12; g.add(head);
-    const edge = box(0.02, 0.34, 0.06, iron, 0.66); edge.position.z = 0.29; g.add(edge);
-    g.add(box(0.06, 0.08, 0.06, dark, 0.8));
-  } else {
-    const long = model === 'longsword', ash = model === 'ashblade';
-    const len = long ? 1.0 : ash ? 0.9 : 0.78;
-    g.add(box(long ? 0.05 : 0.055, len, 0.018, iron, 0.11 + len / 2));
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.039, 0.12, 4), iron);
-    tip.position.y = 0.11 + len + 0.06; tip.rotation.y = Math.PI / 4; tip.scale.z = 0.35; g.add(tip);
-    g.add(box(long ? 0.3 : 0.24, 0.045, 0.06, dark, 0.1));
-    g.add(box(0.04, long ? 0.26 : 0.2, 0.04, grip, long ? -0.02 : 0));
-    g.add(box(0.06, 0.06, 0.06, dark, long ? -0.17 : -0.12));
-    if (ash) { // glowing ember edge
-      const glow = box(0.07, len * 0.85, 0.008, basicMaterial(0xff6a20), 0.11 + len / 2);
-      glow.position.z = 0.012; g.add(glow);
-    }
-  }
+  const w = buildWeapon(model, o);
+  // shared convention: edge faces +Z. The swing travels toward -X in view
+  // space, so turn the model a quarter turn: the edge leads the cut.
+  w.rotation.y = -Math.PI / 2;
+  g.add(w);
+  g.userData.weapon = w;
   g.scale.setScalar(0.8);
   return g;
 }

@@ -481,7 +481,11 @@ export class MainDungeon extends Dungeon {
     super.build();
     const a = this.layout.arena, [sx, sz] = a.entryDir;
     // the boss waits in the middle of the arena
-    this.enemySpawns.push({ type: this.bossType, pos: this.cellCenter(a.cx, a.cy), opts: { level: this.level } });
+    // the guardian is sealed inside its arena (leash): it never follows you into the corridors
+    const pad = 1.2;
+    const leash = { x0: a.x * CELL + pad, z0: a.y * CELL + pad, x1: (a.x + a.w) * CELL - pad, z1: (a.y + a.h) * CELL - pad };
+    this.arenaRect = leash;
+    this.enemySpawns.push({ type: this.bossType, pos: this.cellCenter(a.cx, a.cy), opts: { level: this.level, leash } });
     // two gates on the far side of the arena
     const ex = a.cx + sx * Math.floor(a.w / 2), ez = a.cy + sz * Math.floor(a.h / 2);
     const px = -sz, pz = sx;

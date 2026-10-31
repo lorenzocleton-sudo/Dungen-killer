@@ -10,7 +10,48 @@ export class EnemyManager {
   /** Fresh enemies every visit (the dead return when you come back). */
   spawn(area) {
     this.clear(area);
-    for (const s of area.enemySpawns || []) this.list.push(new Enemy(s.type, s.pos, area, s.opts || {}));
+    for (const s of area.enemySpawns || []) {
+      const e = new Enemy(s.type, s.pos, area, s.opts || {});
+      if (!this.fit(e, area)) {
+        // no room for this body here: a smaller kin takes its place
+        e.dispose();
+        if (e.def.boss) { this.list.push(new Enemy(s.type, s.pos, area, s.opts || {})); continue; }
+        const small = e.def.ranged ? 'archer' : 'hollow';
+        const r = new Enemy(small, s.pos, area, s.opts || {});
+        this.list.push(r);
+        continue;
+      }
+      this.list.push(e);
+    }
+  }
+
+  /**
+   * Large enemies only spawn where they fit AND can move: find a cell near the
+   * spawn with enough clearance (and some room around it). Moves the enemy there.
+   */
+  fit(e, area) {
+    const nav = area.getNav && area.getNav();
+    if (!nav || e.navNeed <= 0) return true;
+    const need = e.navNeed;
+    const ok = (k) => {
+      if (!nav.fits(k, need)) return false;
+      // must be able to move: at least a few neighbouring cells fit too
+      const W = nav.W; let n = 0;
+      for (const d of [1, -1, W, -W, 2, -2, 2 * W, -2 * W]) if (nav.fits(k + d, need)) n++;
+      return n >= 4;
+    };
+    const k0 = nav.idx(e.pos.x, e.pos.z);
+    if (ok(k0) && Math.abs(nav.h[k0] - e.pos.y) < 1) return true;
+    const i0 = k0 % nav.W, j0 = (k0 / nav.W) | 0;
+    for (let d = 1; d <= 8; d++) for (let j = j0 - d; j <= j0 + d; j++) for (let i = i0 - d; i <= i0 + d; i++) {
+      if (Math.max(Math.abs(i - i0), Math.abs(j - j0)) !== d || i < 0 || j < 0 || i >= nav.W || j >= nav.H) continue;
+      const k = j * nav.W + i;
+      if (!ok(k) || Math.abs(nav.h[k] - e.pos.y) > 1) continue;
+      const c = nav.center(k);
+      e.pos.set(c.x, c.y, c.z); e.home.copy(e.pos); e.group.position.copy(e.pos);
+      return true;
+    }
+    return false;
   }
 
   /** Spawn one enemy (or boss) at a world position - used by the admin menu and bosses. */

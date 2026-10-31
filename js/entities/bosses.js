@@ -57,21 +57,28 @@ export class BossBrain {
     const y = e.pos.y;
     const fwdYaw = Math.atan2(p.pos.x - e.pos.x, p.pos.z - e.pos.z);
     e.yaw = fwdYaw;
-    const tele = (shape, x, z, yaw = 0) => { const t = new Telegraph(e.area, shape, x, y, z, yaw, a.wind); this.teles.push(t); return t; };
+    const tele = (shape, x, z, yaw = 0, o) => { const t = new Telegraph(e.area, shape, x, y, z, yaw, a.wind, o); this.teles.push(t); return t; };
     const R = e.radius;
     switch (kind) {
-      case 'sweep': a.r = d.reach * 1.1 + R * 0.4; a.angle = 2.2; tele({ r: a.r, angle: a.angle }, e.pos.x, e.pos.z, fwdYaw); a.yaw = fwdYaw; break;
+      // melee zones are parented to the boss: if it is knocked back or turns, the zone goes with it
+      case 'sweep': a.r = d.reach * 1.1 + R * 0.4; a.angle = 2.2; a.zone = tele({ r: a.r, angle: a.angle }, e.pos.x, e.pos.z, fwdYaw, { follow: e }); a.yaw = fwdYaw; break;
       case 'slam': {
         a.r = 2.6 + R * 0.3; const off = R + 1.6;
-        a.cx = e.pos.x + Math.sin(fwdYaw) * off; a.cz = e.pos.z + Math.cos(fwdYaw) * off;
-        tele({ r: a.r }, a.cx, a.cz); a.wind *= 1.1; break;
+        a.zone = tele({ r: a.r }, e.pos.x + Math.sin(fwdYaw) * off, e.pos.z + Math.cos(fwdYaw) * off, 0, { follow: e, fwd: off }); a.wind *= 1.1; break;
       }
-      case 'nova': a.r = 4.6 + R * 0.5; tele({ r: a.r }, e.pos.x, e.pos.z); a.wind *= 1.25; break;
+      case 'nova': a.r = 4.6 + R * 0.5; a.zone = tele({ r: a.r }, e.pos.x, e.pos.z, 0, { follow: e }); a.wind *= 1.25; break;
       case 'charge': case 'charge2':
         a.yaw = fwdYaw; a.len = Math.min(16, Math.hypot(p.pos.x - e.pos.x, p.pos.z - e.pos.z) + 5);
+        if (e.leash) { // stop the charge at the arena edge
+          const L = e.leash, dx = Math.sin(fwdYaw), dz = Math.cos(fwdYaw);
+          const tx = dx > 0 ? (L.x1 - e.pos.x) / dx : dx < 0 ? (L.x0 - e.pos.x) / dx : 99;
+          const tz = dz > 0 ? (L.z1 - e.pos.z) / dz : dz < 0 ? (L.z0 - e.pos.z) / dz : 99;
+          a.len = Math.max(2, Math.min(a.len, tx, tz));
+        }
         tele({ type: 'rect', w: R + 0.4, len: a.len }, e.pos.x, e.pos.z, fwdYaw);
         a.wind *= 0.8; a.act = a.len / 15; a.n = kind === 'charge2' ? 2 : 1; break;
       case 'leap': a.r = 2.8 + R * 0.3; a.tx = p.pos.x; a.tz = p.pos.z; a.ty = p.pos.y; a.sx = e.pos.x; a.sz = e.pos.z; a.sy = e.pos.y;
+        if (e.leash) { const L = e.leash; a.tx = Math.max(L.x0, Math.min(L.x1, a.tx)); a.tz = Math.max(L.z0, Math.min(L.z1, a.tz)); a.ty = e.pos.y; }
         tele({ r: a.r }, a.tx, a.tz); a.wind *= 1.2; a.act = 0.55; break;
       case 'volley': a.wind *= 0.75; break;
       case 'summon': a.wind = 1.0; break;
@@ -95,17 +102,21 @@ export class BossBrain {
     const inCircle = (x, z, r) => Math.hypot(p.pos.x - x, p.pos.z - z) < r + 0.3 && Math.abs(p.pos.y - e.pos.y) < 2.5;
     const area = e.area;
     const boom = (x, z, r, col = [1, 0.4, 0.15]) => { area.glow.burst(x, e.pos.y + 0.3, z, Math.round(18 + r * 6), r * 1.6, 0.6, col, 0.08, -3, 0.6); area.dust.burst(x, e.pos.y + 0.2, z, 16, r, 1, [0.25, 0.22, 0.2], 0.12, -2, 1); };
+    // hits are checked against the zone's CURRENT position, never where it spawned
+    if (a.zone) a.zone._sync();
     switch (a.kind) {
       case 'sweep': {
-        let diff = Math.atan2(pdx, pdz) - a.yaw; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-        if (pd < a.r + 0.3 && Math.abs(diff) < a.angle / 2) e.hitPlayer(p, d.damage);
-        boom(e.pos.x + Math.sin(a.yaw) * a.r * 0.6, e.pos.z + Math.cos(a.yaw) * a.r * 0.6, 1.5);
+        const zx = a.zone.x, zz = a.zone.z, zy = a.zone.yaw;
+        const qx = p.pos.x - zx, qz = p.pos.z - zz;
+        let diff = Math.atan2(qx, qz) - zy; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+        if (Math.hypot(qx, qz) < a.r + 0.3 && Math.abs(diff) < a.angle / 2 && Math.abs(p.pos.y - e.pos.y) < 2.5) e.hitPlayer(p, d.damage);
+        boom(zx + Math.sin(zy) * a.r * 0.6, zz + Math.cos(zy) * a.r * 0.6, 1.5);
         break;
       }
-      case 'slam': if (inCircle(a.cx, a.cz, a.r)) e.hitPlayer(p, d.damage, 1.25); boom(a.cx, a.cz, a.r); p.shake = Math.max(p.shake, 0.6); break;
+      case 'slam': if (inCircle(a.zone.x, a.zone.z, a.r)) e.hitPlayer(p, d.damage, 1.25); boom(a.zone.x, a.zone.z, a.r); p.shake = Math.max(p.shake, 0.6); break;
       case 'nova': {
         const col = a.arg === 'poison' ? [0.5, 0.9, 0.2] : a.arg === 'water' ? [0.3, 0.8, 0.8] : a.arg === 'fire' ? [1, 0.5, 0.1] : [0.8, 0.7, 0.6];
-        if (inCircle(e.pos.x, e.pos.z, a.r)) {
+        if (inCircle(a.zone.x, a.zone.z, a.r)) {
           e.hitPlayer(p, d.damage, 0.9);
           if (a.arg === 'poison') p.addDot(6, 4, 'poison');
           if (a.arg === 'fire') p.addDot(8, 3, 'burn');

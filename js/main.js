@@ -116,6 +116,26 @@ class Game {
     });
     events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
 
+    // enemies are solid for the player: medium+ can't be pushed at all, small ones only barely
+    this.player.actorResolve = (p, pr) => {
+      const pl = this.player;
+      for (const e of this.enemies.list) {
+        if (e.dead || pl.phasing && e.sizeClass < 2) continue;
+        if (Math.abs(e.pos.y - pl.pos.y) > Math.max(1.5, e.height * 0.8)) continue;
+        const dx = p.x - e.pos.x, dz = p.z - e.pos.z, d = Math.hypot(dx, dz), min = pr + Math.min(e.radius, 2.2);
+        if (d >= min || d < 1e-4) continue;
+        const pen = min - d, nx = dx / d, nz = dz / d;
+        const give = e.mass <= 1 ? 0.15 : 0;
+        p.x += nx * pen * (1 - give); p.z += nz * pen * (1 - give);
+        if (give) { e.pos.x -= nx * pen * give; e.pos.z -= nz * pen * give; this.area.collision.resolve(e.pos, Math.min(e.radius, 2.2), e.pos.y, e.height, 0.45); }
+      }
+    };
+    // heavy enemies slam the ground: a ring you have to jump over
+    this.shockwave = (e, radius = 8, o = {}) => {
+      this.projectiles.shockwave(e.area, e.pos.x, e.pos.y, e.pos.z, { radius, damage: e.def.damage * e.dmgMul * 0.8, owner: e, ...o });
+      e.area.dust.burst(e.pos.x, e.pos.y + 0.2, e.pos.z, 30, 3, 0.8, [0.3, 0.27, 0.24], 0.14, -2, 1);
+    };
+
     this.combat.refreshStats();
     this.player.hp = this.player.maxHp;
     events.on('inventoryChanged', () => { if (this.screens.open) this.screens.render(); });
@@ -286,6 +306,26 @@ class Game {
     this.state = new GameState();
     this.clock = new WorldClock(0);
     this.renown.lastRank = 0;
+    // enemies are solid for the player: medium+ can't be pushed at all, small ones only barely
+    this.player.actorResolve = (p, pr) => {
+      const pl = this.player;
+      for (const e of this.enemies.list) {
+        if (e.dead || pl.phasing && e.sizeClass < 2) continue;
+        if (Math.abs(e.pos.y - pl.pos.y) > Math.max(1.5, e.height * 0.8)) continue;
+        const dx = p.x - e.pos.x, dz = p.z - e.pos.z, d = Math.hypot(dx, dz), min = pr + Math.min(e.radius, 2.2);
+        if (d >= min || d < 1e-4) continue;
+        const pen = min - d, nx = dx / d, nz = dz / d;
+        const give = e.mass <= 1 ? 0.15 : 0;
+        p.x += nx * pen * (1 - give); p.z += nz * pen * (1 - give);
+        if (give) { e.pos.x -= nx * pen * give; e.pos.z -= nz * pen * give; this.area.collision.resolve(e.pos, Math.min(e.radius, 2.2), e.pos.y, e.height, 0.45); }
+      }
+    };
+    // heavy enemies slam the ground: a ring you have to jump over
+    this.shockwave = (e, radius = 8, o = {}) => {
+      this.projectiles.shockwave(e.area, e.pos.x, e.pos.y, e.pos.z, { radius, damage: e.def.damage * e.dmgMul * 0.8, owner: e, ...o });
+      e.area.dust.burst(e.pos.x, e.pos.y + 0.2, e.pos.z, 30, 3, 0.8, [0.3, 0.27, 0.24], 0.14, -2, 1);
+    };
+
     this.combat.refreshStats();
     this.player.hp = this.player.maxHp;
     this.closeMenu();

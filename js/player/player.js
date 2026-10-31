@@ -153,6 +153,7 @@ export class Player {
     for (let i = 0; i < n; i++) {
       p.x += this.velocity.x * dt / n; p.z += this.velocity.z * dt / n;
       world.resolve(p, P.radius, this.pos.y, P.height, P.step);
+      if (this.actorResolve) this.actorResolve(p, P.radius);   // enemies are solid: they don't get shoved
     }
     this.pos.x = p.x; this.pos.z = p.z;
 

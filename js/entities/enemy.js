@@ -6,6 +6,28 @@ import * as THREE from '../../lib/three.module.min.js';
 import { ENEMY_TYPES } from './enemyTypes.js';
 import { events } from '../engine/events.js';
 import { BossBrain } from './bosses.js';
+import { Telegraph } from './projectiles.js';
+import { NavGrid } from '../engine/nav.js';
+
+const MASS = [1, 3, 8, 20];
+const _box = new THREE.Box3(), _bv = new THREE.Vector3();
+
+/** Body bounds of a model (weapons excluded), in the model's scaled space. */
+function bodyBounds(root) {
+  _box.makeEmpty();
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const scale = root.scale.x;
+  root.traverse((o) => {
+    if (!o.isMesh || o.isSprite) return;
+    for (let p = o; p && p !== root; p = p.parent) if (p.userData.weapon) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    const b = o.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    _box.union(b);
+  });
+  _box.min.multiplyScalar(scale); _box.max.multiplyScalar(scale);
+  return _box;
+}
 
 const STEP = 0.45;
 const _wp = new THREE.Vector3();
@@ -24,6 +46,20 @@ export class Enemy {
     const base = this.group.scale.x || 1;
     this.sizeMul = base * (this.elite ? 1.45 : 1);
     this.group.scale.setScalar(this.sizeMul);
+    // collision radius / height from the actual model (weapons excluded)
+    {
+      const bb = bodyBounds(this.group);
+      const hw = (bb.max.x - bb.min.x) / 2, hl = (bb.max.z - bb.min.z) / 2;
+      const fromDef = this.def.radius * this.sizeMul / (this.def.modelScale || 1);
+      const fromModel = Math.max(hw, hl * 0.62);
+      this._r = Math.max(fromDef * 0.85, Math.min(fromDef * 1.8, fromModel));
+      this._h = Math.max(this.def.height * this.sizeMul / (this.def.modelScale || 1) * 0.8, bb.max.y);
+    }
+    this.sizeClass = NavGrid.sizeClass(this._r);
+    this.mass = MASS[this.sizeClass] * (this.def.boss ? 2 : 1);
+    this.navNeed = NavGrid.need(this._r);
+    this.leash = opts.leash || null;
+    this.agility = opts.agility || 0;
     this.pos = pos.clone();
     this.home = pos.clone();
     this.vel = new THREE.Vector3();
@@ -52,8 +88,8 @@ export class Enemy {
   }
 
   // the model is authored at scale 1; radius/height grow with size
-  get radius() { return this.def.radius * this.sizeMul / (this.def.modelScale || 1); }
-  get height() { return this.def.height * this.sizeMul / (this.def.modelScale || 1); }
+  get radius() { return this._r; }
+  get height() { return this._h; }
   get alive() { return !this.dead; }
   get showsBar() { return (this.def.boss || this.elite) && !this.dead && this.state !== 'idle'; }
 
@@ -75,6 +111,7 @@ export class Enemy {
     if (this.poiseDmg >= this.def.poise * (this.elite ? 2 : 1)) {
       this.poiseDmg = 0;
       this.state = 'stagger'; this.timer = this.def.heavy ? 0.6 : 0.35;
+      this._clearTele();
     }
   }
 
@@ -124,7 +161,17 @@ export class Enemy {
     this.state = 'dead';
     this.timer = 0;
     if (this.brain) this.brain.clear();
+    this._clearTele();
     events.emit('enemyKilled', { enemy: this, type: this.type, pos: this.pos.clone() });
+  }
+
+  _clearTele() { if (this.tele) { this.tele.remove(); this.tele = null; } }
+
+  /** Red melee zone for a regular attack, parented to this enemy (moves/turns with it). */
+  _startTele() {
+    this._clearTele();
+    const d = this.def, r = d.reach * this.sizeMul + 0.3;
+    this.tele = new Telegraph(this.area, { r, angle: 2.4 }, this.pos.x, this.pos.y, this.pos.z, this.yaw, Math.max(0.15, this.timer), { follow: this });
   }
 
   setFlash(v) {
@@ -193,13 +240,15 @@ export class Enemy {
             targetYaw = faceYaw;
             this.rangedCd -= dt;
             if (dist < d.ranged.keep) { targetYaw = faceYaw + Math.PI; moveSpeed = d.speed * 0.8; }
-            if (dist < d.range) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; }
-            else if (this.rangedCd <= 0) { this.state = 'windup'; this.timer = d.ranged.windup || d.windup; this.shooting = true; }
+            if (dist < d.range) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; this._startTele(); }
+            else if (this.rangedCd <= 0) { this.state = 'windup'; this.timer = this.model.archer ? 1.1 : (d.ranged.windup || d.windup); this.shooting = true; this.drawT = 0; }
             break;
           }
-          if (dist < d.range * this.sizeMul && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; break; }
+          if (dist < d.range * this.sizeMul + this.radius * 0.3 && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; this._startTele(); break; }
           const wp = this.navTo(dt, player.pos.x, player.pos.z, player.pos.y);
           if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = d.speed; }
+          // the player hid somewhere too small for this body: stop at the opening, never squeeze through
+          if (!wp && dist < 12 && canSee) { this.state = 'blocked'; this.timer = 3 + Math.random(); break; }
           // give up when unreachable or the player is far away: walk back home
           if (!wp || dist > d.giveUp) { this.lostTimer += dt; if (this.lostTimer > (wp ? 4 : 2.5)) { this.state = 'return'; this.lostTimer = 0; this.path = null; } }
           else this.lostTimer = 0;
@@ -216,8 +265,31 @@ export class Enemy {
           if (this.senseTimer <= 0) { this.senseTimer = 0.4; if (dist < d.notice * 0.7 && Math.abs(dy) < 2 && this._canSee(player, collision)) this.state = 'chase'; }
           break;
         }
+        case 'blocked': {
+          // at the mouth of a passage it can't fit through: shoot, slam the ground, or go back to guard
+          targetYaw = faceYaw;
+          const canSee = this._canSee(player, collision);
+          if (d.ranged && canSee && dist < d.ranged.range) {
+            this.rangedCd -= dt;
+            if (this.rangedCd <= 0) { this.state = 'windup'; this.timer = d.ranged.windup || d.windup; this.shooting = true; break; }
+          } else if (this.sizeClass >= 2 && !d.boss && dist < 7 && this.timer < 2.2 && !this._slammed && ctx.game.shockwave) {
+            this._slammed = true;
+            ctx.game.shockwave(this, Math.min(9, dist + 2));
+          }
+          // player stepped out where we can reach again
+          if (this.timer % 0.5 < dt && this.navTo(dt, player.pos.x, player.pos.z, player.pos.y)) { this.state = 'chase'; this._slammed = false; break; }
+          if (this.timer <= 0) { this.state = 'return'; this._slammed = false; this.path = null; }
+          break;
+        }
         case 'windup':
           targetYaw = faceYaw;
+          if (this.shooting && this.model.archer) {
+            // face the target first, then nock -> draw -> hold -> release
+            let df = faceYaw - this.yaw; df = Math.atan2(Math.sin(df), Math.cos(df));
+            if (this.drawT === undefined) this.drawT = 0;
+            if (Math.abs(df) > 0.3 && this.drawT < 0.25) { this.timer += dt; break; }
+            this.drawT += dt;
+          }
           if (this.timer <= 0) { this.state = 'strike'; this.timer = d.strike; this._struck = false; }
           break;
         case 'strike':
@@ -225,13 +297,14 @@ export class Enemy {
             this._struck = true;
             if (this.shooting) this._shoot(ctx);
             else {
+              this._clearTele();
               let ang = faceYaw - this.yaw; ang = Math.atan2(Math.sin(ang), Math.cos(ang));
               if (dist < d.reach * this.sizeMul + 0.3 && Math.abs(ang) < 1.2 && Math.abs(dy) < 1.4) this.hitPlayer(player, d.damage);
               const l = d.lunge ?? 2.5;
               this.vel.x += Math.sin(this.yaw) * l; this.vel.z += Math.cos(this.yaw) * l;
             }
           }
-          if (this.timer <= 0) { this.state = 'recover'; this.timer = this.shooting ? 0.35 : d.recover; }
+          if (this.timer <= 0) { this.state = 'recover'; this.timer = this.shooting ? 0.35 : d.recover; this.drawT = undefined; this._clearTele(); }
           break;
         case 'recover':
           targetYaw = faceYaw;
@@ -262,6 +335,7 @@ export class Enemy {
     if (this.brain && this.brain.leaping) { this.group.rotation.y = this.yaw; this._animate(dt, 0); return; }
     this.move(dt, moveSpeed, ctx);
     this._animate(dt, moveSpeed);
+    if (this.tele) this.tele.update(dt);
   }
 
   /**
@@ -272,8 +346,10 @@ export class Enemy {
   navTo(dt, tx, tz, ty) {
     const nav = this.area.getNav && this.area.getNav();
     if (!nav) return { x: tx, z: tz };
+    if (this.leash) { const L = this.leash; tx = Math.max(L.x0, Math.min(L.x1, tx)); tz = Math.max(L.z0, Math.min(L.z1, tz)); }
+    const need = this.navNeed;
     const mk = nav.idx(this.pos.x, this.pos.z), tk = nav.idx(tx, tz);
-    if (nav.walkable(mk) && nav.walkable(tk) && Math.abs(ty - this.pos.y) < 0.6 && Math.hypot(tx - this.pos.x, tz - this.pos.z) < 14 && nav.lineClear(mk, tk)) {
+    if (nav.walkable(mk) && nav.fits(tk, need) && Math.abs(ty - this.pos.y) < 0.6 && Math.hypot(tx - this.pos.x, tz - this.pos.z) < 14 && nav.lineClear(mk, tk, need)) {
       this.path = null;
       return { x: tx, z: tz };
     }
@@ -285,7 +361,9 @@ export class Enemy {
         Enemy.pathBudget--;
         this.repathT = 0.6 + Math.random() * 0.5;
         this.navGoal = { x: tx, z: tz };
-        this.path = nav.findPath(this.pos.x, this.pos.z, this.pos.y, tx, tz, ty);
+        const ag = this.agility;
+        this.path = nav.findPath(this.pos.x, this.pos.z, this.pos.y, tx, tz, ty, 20000, need,
+          this.sizeClass < 2 && ag >= 1 ? 3 : 0, this.sizeClass < 2 && ag >= 2 ? 0.7 : 0);
         this.pathI = 0;
         if (!this.path) return null;
       }
@@ -298,7 +376,7 @@ export class Enemy {
   _shoot(ctx) {
     const r = this.def.ranged, player = ctx.player;
     this.rangedCd = r.cooldown * (0.8 + Math.random() * 0.4);
-    const from = new THREE.Vector3(this.pos.x, this.pos.y + this.height * 0.7, this.pos.z);
+    const from = this.model.bow ? this.model.bow.arrowTip(new THREE.Vector3()) : new THREE.Vector3(this.pos.x, this.pos.y + this.height * 0.7, this.pos.z);
     const to = new THREE.Vector3(player.pos.x, player.eyeY - 0.5, player.pos.z);
     const n = r.count || 1;
     for (let i = 0; i < n; i++) {
@@ -312,19 +390,20 @@ export class Enemy {
     const vx = Math.sin(this.yaw) * moveSpeed + this.vel.x;
     const vz = Math.cos(this.yaw) * moveSpeed + this.vel.z;
     this.vel.multiplyScalar(Math.max(0, 1 - dt * 7));
-    const r = this.radius, cr = Math.min(r, 1.1);
+    const r = this.radius, cr = Math.min(r, 2.2);
     const steps = Math.max(1, Math.ceil(Math.hypot(vx, vz) * dt / 0.2));
     const p = { x: this.pos.x, z: this.pos.z };
     for (let i = 0; i < steps; i++) {
       p.x += vx * dt / steps; p.z += vz * dt / steps;
       for (const o of enemies) {
         if (o === this || o.dead) continue;
-        const ox = p.x - o.pos.x, oz = p.z - o.pos.z, od = Math.hypot(ox, oz), min = cr + Math.min(o.radius, 1.1);
-        if (od < min && od > 1e-4) { const k = o.def.boss ? 1 : 0.5; p.x += (ox / od) * (min - od) * k; p.z += (oz / od) * (min - od) * k; }
+        const ox = p.x - o.pos.x, oz = p.z - o.pos.z, od = Math.hypot(ox, oz), min = cr + Math.min(o.radius, 2.2);
+        if (od < min && od > 1e-4) { const k = o.mass / (o.mass + this.mass); p.x += (ox / od) * (min - od) * k; p.z += (oz / od) * (min - od) * k; }
       }
       const ox = p.x - player.pos.x, oz = p.z - player.pos.z, od = Math.hypot(ox, oz), min = cr + 0.35;
-      if (od < min && od > 1e-4 && Math.abs(player.pos.y - this.pos.y) < 1.5 && !player.roll) { p.x += (ox / od) * (min - od); p.z += (oz / od) * (min - od); }
-      collision.resolve(p, cr, this.pos.y, Math.min(this.height, 2.2), STEP);
+      // the player is solid: we stop at contact (the player can't shove us; see Player.resolveActors)
+      if (od < min && od > 1e-4 && Math.abs(player.pos.y - this.pos.y) < 1.5 && !player.phasing) { p.x += (ox / od) * (min - od); p.z += (oz / od) * (min - od); }
+      collision.resolve(p, cr, this.pos.y, Math.min(this.height, 2.4), STEP);
     }
     this.pos.x = p.x; this.pos.z = p.z;
     const g = collision.groundHeight(this.pos.x, this.pos.z, cr * 0.5, this.pos.y, STEP);
@@ -360,6 +439,7 @@ export class Enemy {
       if (this.state === 'stagger') m.torso.rotation.x = lean - 0.4; else m.torso.rotation.x += (lean - m.torso.rotation.x) * 0.2;
       m.armR.rotation.x = armR;
       if (!m.fixedLeft) m.armL.rotation.x = armL;
+      if (m.archer) this._animateBow(m, winding, striking);
     } else if (m.kind === 'crawler') {
       const ph = t * 11 * (0.4 + walk * 0.6), sw = Math.sin(ph) * walk;
       m.armL.rotation.x = -0.35 + sw * 0.7; m.armR.rotation.x = -0.35 - sw * 0.7;
@@ -381,6 +461,26 @@ export class Enemy {
       if (m.armL) m.armL.rotation.x = winding ? -2.2 * k : striking ? 0.6 : -0.3 + Math.sin(t * 2 + 1) * 0.1;
       if (m.wings) m.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * (0.4 + Math.sin(t * 18) * 0.5); });
     }
+  }
+
+  /** Archer: bow in the left hand (kept vertical), right hand on the string. */
+  _animateBow(m, winding, striking) {
+    let k = 0, aim = 0;
+    if (this.shooting && winding) {
+      const t = this.drawT || 0;
+      aim = Math.min(1, t / 0.2);
+      k = t < 0.25 ? 0 : Math.min(1, (t - 0.25) / 0.45);          // nock 0.25s, draw 0.45s, then hold
+      m.bow.arrow.visible = true;
+    } else if (this.shooting && striking) { aim = 1; k = 0; m.bow.arrow.visible = false; }
+    else m.bow.arrow.visible = false;
+    if (aim > 0) {
+      m.armL.rotation.set(-1.5 * aim, 0, 0.22 * aim);
+      m.armR.rotation.set(-1.5 * aim, 0, -0.5 * aim);
+      m.armR.scale.y = 1 - 0.55 * k;                               // pull the string back to the chin
+      m.torso.rotation.y = 0;
+    } else { m.armL.rotation.z = 0; m.armR.rotation.z = 0; m.armR.scale.y = 1; }
+    m.bowMount.rotation.set(-m.armL.rotation.x, 0, -m.armL.rotation.z);
+    m.bow.setDraw(k);
   }
 
   _updateDeath(dt) {
