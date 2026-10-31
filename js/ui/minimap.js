@@ -56,7 +56,7 @@ export class Minimap {
       c.fillStyle = COLORS.open; c.fillRect(0, 0, this.W, this.H);
       c.fillStyle = COLORS.blocked;
       for (const bx of area.collision.boxes) {
-        if (bx.maxY < 1.2 || bx.tag === 'npc' || bx.maxX - bx.minX > 100) continue;
+        if (bx.maxY < 1.2 || bx.tag === 'npc' || bx.tag === 'ground' || bx.maxX - bx.minX > 100) continue;
         c.fillRect(bx.minX - this.ox, bx.minZ - this.oz, Math.max(1, bx.maxX - bx.minX), Math.max(1, bx.maxZ - bx.minZ));
       }
       this.rooms = [];

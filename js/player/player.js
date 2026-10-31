@@ -118,7 +118,7 @@ export class Player {
     else this.stamina = Math.min(this.maxStamina, this.stamina + 34 * (1 + (st.staminaRegenPct || 0) / 100) * dt);
     if (this.exhausted && this.stamina > this.maxStamina * 0.3) this.exhausted = false;
     const speed = P.speed * this.speedMul * (1 + st.speedPct / 100) * (this.sprinting ? 2 * (1 + st.sprintPct / 100) : 1);
-    const slow = this.slowT > 0 ? 0.55 : 1;
+    const slow = (this.slowT > 0 ? 0.55 : 1) * (this.terrainMul || 1);
     if (this.slowT > 0) this.slowT -= dt;
     const tx = (mx * cos - my * sin) * speed * slow;
     const tz = (-mx * sin - my * cos) * speed * slow;

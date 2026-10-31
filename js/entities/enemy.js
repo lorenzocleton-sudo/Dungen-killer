@@ -135,6 +135,7 @@ export class Enemy {
   hitPlayer(player, base, mul = 1) {
     const dealt = player.damage(Math.round(base * this.dmgMul * mul * (0.85 + Math.random() * 0.3)), this.pos, this);
     if (dealt && this.def.onHit && this.def.onHit.slow) player.slowT = Math.max(player.slowT || 0, this.def.onHit.slow);
+    if (dealt && this.def.onHit && this.def.onHit.poison) player.addDot(this.def.onHit.poison, 3, 'poison');
     return dealt;
   }
 

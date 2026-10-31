@@ -14,6 +14,15 @@ import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
 import { MainDungeon, RandomDungeon } from './world/dungeon.js';
 import { Castle } from './world/castle.js';
+import { OutdoorDungeon } from './world/outdoor.js';
+import { BIOMES } from './world/biomes.js';
+
+/** The Shifting Depths: a crypt (cell builder) or an open/cave biome. */
+function createDepths(g) {
+  const id = g.nextBiome && BIOMES[g.nextBiome] ? g.nextBiome : BIOME_IDS[Math.floor(Math.random() * BIOME_IDS.length)];
+  g.nextBiome = id;
+  return BIOMES[id].outdoor ? (g.nextBiome = null, new OutdoorDungeon(g, id)) : new RandomDungeon(g);
+}
 import { BIOME_IDS } from './world/biomes.js';
 import { Projectiles } from './entities/projectiles.js';
 import { Rewards } from './systems/rewards.js';
@@ -32,7 +41,7 @@ import { LootSystem } from './systems/loot.js';
 const AREA_FACTORIES = {
   town: (g) => new Town(g),
   dungeon: (g) => new MainDungeon(g),
-  depths: (g) => new RandomDungeon(g),
+  depths: (g) => createDepths(g),
   castle: (g) => new Castle(g),
 };
 export function registerArea(id, factory) { AREA_FACTORIES[id] = factory; }
@@ -429,6 +438,7 @@ class Game {
       this.deathTimer -= dt;
       if (this.deathTimer <= 0) this.respawn();
     }
+    this.player.terrainMul = area.terrainSlow ? area.terrainSlow(this.player.pos.x, this.player.pos.z) : 1;
     this.player.update(dt, input, area.collision);
     for (const s of this.systems) s.update(dt, this);
     area.update(dt, this.player);

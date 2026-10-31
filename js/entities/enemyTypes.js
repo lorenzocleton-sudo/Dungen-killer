@@ -25,6 +25,10 @@ export const ENEMY_TYPES = {
   archer: base({ name: 'Skeleton Archer', hp: 30, speed: 2.6, notice: 16, range: 1.4, reach: 1.8, damage: 6, windup: 0.4, radius: 0.35, height: 1.8, xp: 20, ashes: [4, 9], renown: 2, hitColor: [0.6, 0.55, 0.45],
     ranged: { range: 18, keep: 7, cooldown: 2.4, damage: 12, windup: 0.9, projectile: { color: 0xd8d0b8, size: 0.1, speed: 22, arrow: true } }, build: () => buildArcher() }),
 
+  vine_creeper: base({ name: 'Vine Creeper', hp: 60, speed: 0.9, turn: 4, notice: 9, range: 2.6, reach: 3.2, damage: 12, windup: 0.7, lunge: 0, radius: 0.5, height: 2.2, xp: 26, ashes: [5, 10], renown: 3, onHit: { slow: 1.2 }, hitColor: [0.2, 0.4, 0.1], build: () => buildCreeper() }),
+  panther: base({ name: 'Jungle Panther', hp: 50, speed: 6, turn: 11, notice: 15, range: 1.7, reach: 2.1, damage: 13, windup: 0.35, strike: 0.12, recover: 0.5, lunge: 7, radius: 0.5, height: 1.1, xp: 24, ashes: [4, 9], renown: 3, hitColor: [0.15, 0.1, 0.05], build: () => buildWolf({ scale: 1.15, fur: 'chitin', eye: 0x90e050 }) }),
+  poison_frog: base({ name: 'Poison Frog', hp: 14, speed: 4.5, turn: 12, notice: 9, range: 1.1, reach: 1.5, damage: 4, windup: 0.25, strike: 0.1, recover: 0.4, radius: 0.3, height: 0.5, xp: 6, ashes: [1, 3], renown: 0.8, swarm: true, onHit: { poison: 4 }, hitColor: [0.3, 0.6, 0.1], build: () => buildFrog() }),
+
   // ---------------------------------------------------------------- bosses (one per main dungeon level)
   grave_warden: base({ name: 'The Grave Warden', boss: true, hp: 900, speed: 2.4, turn: 2.6, notice: 18, giveUp: 99, range: 3.5, reach: 4, damage: 30, windup: 1, radius: 1.1, height: 4.4, xp: 400, ashes: [200, 260], renown: 40, armored: true, heavy: true, modelScale: 2.3, hitColor: [0.6, 0.45, 0.25],
     attacks: ['sweep', 'slam', 'charge'], phase2: ['nova', 'summon:hollow:2', 'sweep'], build: () => buildKnight({ scale: 2.3, cape: true }) }),
@@ -136,7 +140,8 @@ function buildKnight(o = {}) {
 }
 
 function buildWolf(o = {}) {
-  const M = mats(['fur', 'bone']);
+  const M = mats([o.fur || 'fur', 'bone']);
+  M.fur = M[o.fur || 'fur'];
   const root = new THREE.Group();
   root.scale.setScalar(o.scale || 1);
   const hips = new THREE.Group(); hips.position.y = 0.6; root.add(hips);
@@ -148,7 +153,7 @@ function buildWolf(o = {}) {
   const snout = boxM(0.16, 0.14, 0.28, M.fur); snout.position.set(0, -0.06, 0.24); head.add(snout);
   for (const s of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 4), M.fur); ear.position.set(s * 0.1, 0.2, -0.05); head.add(ear); }
   const fang = boxM(0.12, 0.04, 0.04, M.bone); fang.position.set(0, -0.14, 0.32); head.add(fang);
-  eyes(head, o.spikes ? 0xff3010 : 0xe0a030, 0.05, 0.16, 0.08, 0.04);
+  eyes(head, o.eye || (o.spikes ? 0xff3010 : 0xe0a030), 0.05, 0.16, 0.08, 0.04);
   if (o.spikes) for (let i = 0; i < 5; i++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.26, 4), M.bone); sp.position.set(0, 0.36, -0.2 + i * 0.18); sp.rotation.x = -0.4; torso.add(sp); }
   const armL = limb(0.1, 0.55, 0.1, M.fur, -0.17, 0, 0.55); torso.add(armL);
   const armR = limb(0.1, 0.55, 0.1, M.fur, 0.17, 0, 0.55); torso.add(armR);
@@ -308,4 +313,35 @@ function buildAbbot() {
   const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), basicMaterial(0xff7020)); orb.position.set(0, 0.75, 0.12); armR.add(orb);
   glowAt(armR, 0xff7020, 0, 0.75, 0.12, 1.4, 0.7);
   return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'biped', eyeH: 1.6, hipY: 0.95, lean: 0.05 };
+}
+
+function buildCreeper() {
+  const M = mats(['moss', 'hedge', 'impSkin']);
+  const root = new THREE.Group();
+  const body = new THREE.Group(); root.add(body);
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.35, 1.7, 6), M.moss); stalk.position.y = 0.85; body.add(stalk);
+  for (let i = 0; i < 5; i++) { const leaf = boxM(0.6, 0.04, 0.3, M.hedge); const a = (i / 5) * Math.PI * 2; leaf.position.set(Math.cos(a) * 0.4, 0.08, Math.sin(a) * 0.4); leaf.rotation.y = -a; body.add(leaf); }
+  const bulb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), M.impSkin); bulb.position.y = 1.9; body.add(bulb);
+  const mouth = boxM(0.4, 0.1, 0.1, basicMaterial(0x0a0402)); mouth.position.set(0, 1.85, 0.36); body.add(mouth);
+  for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 4), M.hedge); const a = (i / 4) * Math.PI * 2; p.position.set(Math.cos(a) * 0.35, 2.15, Math.sin(a) * 0.35); p.rotation.set(Math.sin(a) * 0.8, 0, -Math.cos(a) * 0.8); body.add(p); }
+  const armL = limb(0.07, 1.6, 0.07, M.moss, -0.25, 1.5, 0); body.add(armL);
+  const armR = limb(0.07, 1.6, 0.07, M.moss, 0.25, 1.5, 0); body.add(armR);
+  return { root, body, armL, armR, mats: M, kind: 'float', eyeH: 1.9 };
+}
+
+function buildFrog() {
+  const M = mats(['moss', 'impSkin']);
+  const root = new THREE.Group();
+  const hips = new THREE.Group(); hips.position.y = 0.22; root.add(hips);
+  const torso = new THREE.Group(); hips.add(torso);
+  const body = boxM(0.36, 0.22, 0.44, M.moss); body.position.set(0, 0.05, 0.05); torso.add(body);
+  const spots = boxM(0.3, 0.04, 0.3, M.impSkin); spots.position.set(0, 0.17, 0.05); torso.add(spots);
+  const head = new THREE.Group(); head.position.set(0, 0.08, 0.3); torso.add(head);
+  head.add(boxM(0.3, 0.14, 0.18, M.moss));
+  eyes(head, 0xf0d030, 0.09, 0.06, 0.09, 0.06);
+  const armL = limb(0.06, 0.2, 0.06, M.moss, -0.15, 0, 0.2); torso.add(armL);
+  const armR = limb(0.06, 0.2, 0.06, M.moss, 0.15, 0, 0.2); torso.add(armR);
+  const legL = limb(0.08, 0.24, 0.08, M.moss, -0.17, 0, -0.12); hips.add(legL);
+  const legR = limb(0.08, 0.24, 0.08, M.moss, 0.17, 0, -0.12); hips.add(legR);
+  return { root, hips, torso, head, armL, armR, legL, legR, mats: M, kind: 'crawler', eyeH: 0.3, hipY: 0.22 };
 }
