@@ -261,3 +261,10 @@ body.touch #btn-use.show { display: flex !important; }
 #admin select { max-width: 150px; } #admin input[type=number] { width: 70px; }
 #fps { position: fixed; left: 50%; transform: translateX(-50%); top: 4px; z-index: 6; color: #80ff80; font: 12px monospace; text-shadow: 1px 1px 0 #000; pointer-events: none; display: none; }
 #run-info { pointer-events: auto; }
+#st-bar { position: relative; margin-top: 4px; width: 200px; height: 7px; background: #0c0e08; border: 2px solid #2e3424; box-shadow: 0 0 0 1px #000; }
+#st-fill { height: 100%; width: 100%; background: linear-gradient(#7a8a3a, #4a5a20); }
+#st-fill.tired { background: #6a3a20; }
+#st-bar.flash { animation: stflash 0.4s; }
+@keyframes stflash { 0%, 100% { border-color: #2e3424; } 50% { border-color: #e0c060; } }
+#btn-roll { position: absolute; right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 14px); bottom: calc(9vh + 72px); width: 58px; height: 58px; border-radius: 50%; font-size: 13px;
+  align-items: center; justify-content: center; pointer-events: auto; z-index: 5; touch-action: none; background: rgba(20, 14, 10, 0.6); border: 2px solid rgba(120, 100, 70, 0.6); color: #c8b890; }

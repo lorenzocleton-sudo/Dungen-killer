@@ -410,6 +410,7 @@ class Game {
     }
 
     this.hud.setHp(this.player.hp, this.player.maxHp);
+    this.hud.setStamina(this.player.stamina, this.player.maxStamina, this.player.exhausted);
     this.hud.setClock(this.clock, area.hostile, this.townPhase());
     const st = this.state;
     const runItems = st.run.items.reduce((a, i) => a + i.qty, 0);

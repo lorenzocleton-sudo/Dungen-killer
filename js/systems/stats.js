@@ -27,6 +27,12 @@ export const BASE_STATS = {
   dropPct: 0,
   pyre: 0,
   deathDance: 0,
+  maxStamina: 100,
+  staminaRegenPct: 0,
+  rollCostPct: 0,     // % cheaper rolls
+  rollIframes: 0,     // extra seconds of invulnerability
+  rollDistPct: 0,
+  attackCostPct: 0,   // % cheaper attacks
 };
 
 export function computeStats(state) {
@@ -56,6 +62,7 @@ export function statRows(s) {
     ['Critical', `${s.critChance}% (x${(1 + s.critDmgPct / 100).toFixed(2)})`],
     ['Defense', `${s.defense}%`],
     ['Move speed', `${s.speedPct >= 0 ? '+' : ''}${s.speedPct}%`],
+    ['Stamina', `${s.maxStamina} (+${s.staminaRegenPct}% regen)`],
     ...(s.burnDps ? [['Burn', `${Math.round(s.burnDps * (1 + s.burnPct / 100))}/s`]] : []),
     ...(s.regen ? [['Regen', `${s.regen}/s`]] : []),
     ...(s.lifesteal ? [['Lifesteal', `${s.lifesteal}%`]] : []),

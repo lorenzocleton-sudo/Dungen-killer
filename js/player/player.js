@@ -26,12 +26,41 @@ export class Player {
     this.stats = null;          // derived stats (see systems/stats.js)
     this.sprinting = false;
     this.healOverTime = 0;
+    this.maxStamina = 100;
+    this.stamina = 100;
+    this.staminaDelay = 0;
+    this.exhausted = false;
+    this.roll = null;           // active dodge roll { t, dur, vx, vz }
+  }
+
+  /** Spend stamina; false (and nothing spent) when too tired. */
+  useStamina(n) {
+    if (this.stamina <= 1 || this.exhausted) return false;
+    this.stamina = Math.max(0, this.stamina - n);
+    this.staminaDelay = 0.7;
+    return true;
+  }
+
+  /** Dodge roll in the move direction (backwards when standing still). */
+  startRoll(mx, my) {
+    if (this.roll || this.dead || !this.grounded) return false;
+    const st = this.stats || {};
+    if (!this.useStamina(25 * (1 - (st.rollCostPct || 0) / 100))) return false;
+    if (Math.hypot(mx, my) < 0.2) { mx = 0; my = -1; }
+    const m = Math.hypot(mx, my); mx /= m; my /= m;
+    const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
+    const spd = 10.5 * (1 + (st.rollDistPct || 0) / 100);
+    this.roll = { t: 0, dur: 0.38, vx: (mx * cos - my * sin) * spd, vz: (-mx * sin - my * cos) * spd, side: mx };
+    this.invuln = Math.max(this.invuln, 0.3 + (st.rollIframes || 0));
+    return true;
   }
 
   applyStats(s) {
     const ratio = this.maxHp ? this.hp / this.maxHp : 1;
     this.stats = s;
     this.maxHp = s.maxHp;
+    this.maxStamina = s.maxStamina;
+    this.stamina = Math.min(this.stamina, this.maxStamina);
     this.hp = Math.min(this.maxHp, Math.max(1, Math.round(ratio * this.maxHp)));
   }
 
@@ -69,15 +98,30 @@ export class Player {
     // desired horizontal velocity, camera-relative
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const mx = this.dead ? 0 : input.move.x, my = this.dead ? 0 : input.move.y;
-    const st = this.stats || { speedPct: 0, sprintPct: 0 };
-    this.sprinting = !!input.sprint && (Math.abs(mx) + Math.abs(my) > 0.1);
+    const st = this.stats || { speedPct: 0, sprintPct: 0, staminaRegenPct: 0 };
+    if (input.consume && input.consume('roll') && !this.dead) this.startRoll(mx, my);
+    // stamina: sprinting drains, regenerates after a short pause
+    const wantSprint = !!input.sprint && (Math.abs(mx) + Math.abs(my) > 0.1) && !this.roll;
+    this.sprinting = wantSprint && !this.exhausted && this.stamina > 0;
+    if (this.sprinting) { this.stamina = Math.max(0, this.stamina - 20 * dt); this.staminaDelay = 0.5; if (this.stamina <= 0) this.exhausted = true; }
+    if (this.staminaDelay > 0) this.staminaDelay -= dt;
+    else this.stamina = Math.min(this.maxStamina, this.stamina + 34 * (1 + (st.staminaRegenPct || 0) / 100) * dt);
+    if (this.exhausted && this.stamina > this.maxStamina * 0.3) this.exhausted = false;
     const speed = P.speed * this.speedMul * (1 + st.speedPct / 100) * (this.sprinting ? 2 * (1 + st.sprintPct / 100) : 1);
-    const tx = (mx * cos - my * sin) * speed;
-    const tz = (-mx * sin - my * cos) * speed;
+    const slow = this.slowT > 0 ? 0.55 : 1;
+    if (this.slowT > 0) this.slowT -= dt;
+    const tx = (mx * cos - my * sin) * speed * slow;
+    const tz = (-mx * sin - my * cos) * speed * slow;
     const acc = this.grounded ? 14 : 4;
     const k = Math.min(1, acc * dt);
     this.velocity.x += (tx - this.velocity.x) * k;
     this.velocity.z += (tz - this.velocity.z) * k;
+    if (this.roll) {
+      this.roll.t += dt;
+      const e = 1 - Math.pow(this.roll.t / this.roll.dur, 2) * 0.6;
+      this.velocity.x = this.roll.vx * e; this.velocity.z = this.roll.vz * e;
+      if (this.roll.t >= this.roll.dur) this.roll = null;
+    }
 
     if (this.noclip) {
       // debug fly: move along the view direction, no collision, no gravity
@@ -118,15 +162,16 @@ export class Player {
     const hs = Math.hypot(this.velocity.x, this.velocity.z);
     this.bob += dt * hs * 2.1;
     const bobAmt = Math.min(1.4, hs / P.speed) * 0.045;
-    const targetEye = this.pos.y + (this.dead ? 0.35 : P.eyeHeight);
-    this.eyeY += (targetEye - this.eyeY) * Math.min(1, dt * (this.dead ? 3 : 14));
+    const rollDip = this.roll ? Math.sin(Math.PI * this.roll.t / this.roll.dur) * 0.75 : 0;
+    const targetEye = this.pos.y + (this.dead ? 0.35 : P.eyeHeight) - rollDip;
+    this.eyeY += (targetEye - this.eyeY) * Math.min(1, dt * (this.dead ? 3 : this.roll ? 30 : 14));
     this.shake = Math.max(0, this.shake - dt * 2.5);
     const sh = this.shake * this.shake * 0.08;
     this.camera.position.set(
       this.pos.x + (Math.random() - 0.5) * sh,
       this.eyeY + Math.sin(this.bob * 2) * bobAmt + (Math.random() - 0.5) * sh,
       this.pos.z + (Math.random() - 0.5) * sh);
-    this.camera.rotation.set(this.pitch, this.yaw, this.dead ? 0.5 : Math.sin(this.bob) * bobAmt * 0.3, 'YXZ');
+    this.camera.rotation.set(this.pitch - rollDip * 0.25, this.yaw, this.dead ? 0.5 : Math.sin(this.bob) * bobAmt * 0.3 - (this.roll ? this.roll.side * rollDip * 0.3 : 0), 'YXZ');
     this.forward.set(-sin, 0, -cos);
     this.moving = hs > 0.5;
   }

@@ -146,7 +146,10 @@ export class CombatSystem {
 
   update(dt) {
     const g = this.game, p = g.player;
-    if (g.input.consume('hit') && !p.dead && !g.transitioning) this.weapon.swing();
+    if (g.input.consume('hit') && !p.dead && !g.transitioning && !p.roll && this.weapon.ready) {
+      if (p.useStamina(12 * (1 - (this.stats.attackCostPct || 0) / 100))) this.weapon.swing();
+      else g.hud.flashStamina();
+    }
     if (g.input.consume('flask')) this.drinkFlask();
     if (this.flaskCooldown > 0) this.flaskCooldown -= dt;
     this.weapon.update(dt, p);

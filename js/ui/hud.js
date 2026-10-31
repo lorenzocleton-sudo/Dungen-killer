@@ -6,9 +6,9 @@ import { fmtTime } from '../systems/clock.js';
 const $ = (id) => document.getElementById(id);
 
 const HINTS = {
-  kbm: 'WASD move · Shift / double-tap W sprint · Click hit · E use · R flask · I inventory · Esc menu',
-  touch: 'Left thumb: move · Swipe right: look · HIT strike · RUN toggles sprint · \u25C8 inventory',
-  gamepad: 'L-stick move (click L3: sprint on/off) · R-stick look · A/RT hit · Y use · LB flask · Back inventory',
+  kbm: 'WASD move · Shift / double-tap W sprint · Click hit · Space roll · E use · R flask · I inventory · M map · Esc menu',
+  touch: 'Left thumb: move · Swipe right: look · HIT strike · ROLL dodge · RUN toggles sprint · \u25C8 inventory',
+  gamepad: 'L-stick move (L3: sprint on/off) · R-stick look · A/RT hit · B roll · Y use · LB flask · Back inventory',
 };
 
 export class HUD {
@@ -52,6 +52,18 @@ export class HUD {
     this.el.time.textContent = inDungeon
       ? `Dungeon ${fmtTime(clock.time)}  ·  flips in ${fmtTime(clock.untilFlip)}`
       : `Time stands still  ·  ${fmtTime(clock.time)}`;
+  }
+
+  setStamina(v, max, exhausted) {
+    const el = this._st || (this._st = document.getElementById('st-fill'));
+    el.style.width = Math.max(0, v / max) * 100 + '%';
+    el.parentElement.style.width = `min(${(max / 100) * 26}vw, ${max * 2}px)`;
+    el.classList.toggle('tired', !!exhausted);
+  }
+
+  flashStamina() {
+    const el = document.getElementById('st-bar');
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
   }
 
   setSprint(on) { document.getElementById('sprint-ind').classList.toggle('show', on); }
