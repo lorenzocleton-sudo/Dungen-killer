@@ -178,7 +178,7 @@ export function portal(area, o) {
     },
   });
   const tp = L(0, 0.15);
-  const p = { pos: new THREE.Vector3(tp[0], y, tp[1]), radius: 1.05, target: o.target, spawn: o.spawn, label: o.label || 'Portal', yaw };
+  const p = { pos: new THREE.Vector3(tp[0], y, tp[1]), radius: 1.05, target: o.target, spawn: o.spawn, descend: !!o.descend, label: o.label || 'Portal', yaw };
   area.portals.push(p);
   return p;
 }
