@@ -43,8 +43,8 @@ export class HUD {
     this._lastHp = hp;
   }
 
-  setClock(clock, inDungeon) {
-    const phase = clock.phase;
+  setClock(clock, inDungeon, shownPhase) {
+    const phase = shownPhase || clock.phase;
     const icon = phase === 'day' ? '☀' : '☾';
     this.el.phase.textContent = inDungeon
       ? `Town: ${phase.toUpperCase()} ${icon}`

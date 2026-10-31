@@ -1,30 +1,6 @@
-// Material factory. Every lit material is patched so the optional PS1 mode
-// can snap vertices to the low-res pixel grid (vertex jitter).
+// Material factory: cached lit (Lambert) materials, additive glows, sprites.
 import * as THREE from '../../lib/three.module.min.js';
 import { getTexture } from './textures.js';
-
-export const ps1Uniforms = {
-  uJitter: { value: 0 },
-  uRes: { value: new THREE.Vector2(400, 225) },
-};
-
-function ps1Hook(shader) {
-  shader.uniforms.uJitter = ps1Uniforms.uJitter;
-  shader.uniforms.uRes = ps1Uniforms.uRes;
-  shader.vertexShader = 'uniform float uJitter;\nuniform vec2 uRes;\n' +
-    shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
-      if (uJitter > 0.5) {
-        vec2 grid = uRes * 0.5;
-        vec4 p = gl_Position;
-        p.xy = floor(p.xy / p.w * grid + 0.5) / grid * p.w;
-        gl_Position = p;
-      }`);
-}
-
-export function patchPS1(mat) {
-  mat.onBeforeCompile = ps1Hook;
-  return mat;
-}
 
 const matCache = new Map();
 
@@ -44,7 +20,6 @@ export function litMaterial(texName, opts = {}) {
     transparent: !!opts.transparent,
     flatShading: opts.flat !== undefined ? opts.flat : false,
   });
-  patchPS1(m);
   if (!opts.unique) matCache.set(key, m);
   return m;
 }
@@ -60,7 +35,6 @@ export function glowMaterial(texName, color = 0xffffff, opts = {}) {
     side: opts.side || THREE.DoubleSide,
     fog: opts.fog !== undefined ? opts.fog : true,
   });
-  patchPS1(m);
   return m;
 }
 
@@ -77,6 +51,5 @@ export function spriteMaterial(texName, color = 0xffffff, opts = {}) {
 
 export function basicMaterial(color, opts = {}) {
   const m = new THREE.MeshBasicMaterial({ color, ...opts });
-  patchPS1(m);
   return m;
 }

@@ -140,7 +140,7 @@ export class Dungeon extends Area {
     this.scene.background = new THREE.Color(0x030303);
     this.hemi.color.set(0x4a4640); this.hemi.groundColor.set(0x0a0806); this.hemi.intensity = 1.3;
     this.sun.intensity = 0;
-    this.lanternIntensity = 4.2;
+    this.lanternIntensity = 5.6;
     this.dustColor = [0.32, 0.3, 0.27];
 
     const N4 = [[0, -1], [1, 0], [0, 1], [-1, 0]];

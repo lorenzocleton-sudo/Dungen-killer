@@ -24,7 +24,7 @@ vendored in `lib/`, so the game works offline and on GitHub Pages.
 
 The game uses whichever input you touched last and shows matching hints. The
 touch controls only appear in touch mode. You can set look sensitivity, invert
-Y and PS1 mode (vertex jitter + 15-bit dither) in the menu.
+Y, always-day-in-village and the minimap in the menu.
 
 ## Game rules
 
@@ -60,9 +60,9 @@ lib/three.module.min.js       vendored three.js r170
 js/main.js                    Game: wires systems, area registry, loop, death/respawn
 js/config.js                  tuning numbers
 js/engine/
-  renderer.js                 ~400x225 render target + post pass (grade, vignette, dither, damage flash)
+  renderer.js                 ~400x225 render target + post pass (grade, vignette, damage flash)
   textures.js                 seeded procedural 64x64 canvas textures (stone, cobble, wood, iron, ...)
-  materials.js                material factory + PS1 vertex-snap shader patch
+  materials.js                material factory
   geometry.js                 box/roof helpers + StaticBatcher (merges level geometry per material)
   collision.js                AABB world: walls, floors, stairs (step-up), line of sight
   lights.js                   pooled point lights that follow the nearest torches

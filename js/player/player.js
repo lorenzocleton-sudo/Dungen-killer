@@ -45,7 +45,7 @@ export class Player {
   }
 
   damage(amount, sourcePos) {
-    if (this.dead || this.invuln > 0) return 0;
+    if (this.dead || this.invuln > 0 || this.god) return 0;
     if (this.stats) amount = Math.max(1, Math.round(amount * (1 - this.stats.defense / 100)));
     this.hp = Math.max(0, this.hp - amount);
     this.shake = Math.min(1, this.shake + 0.5 + amount / 40);
@@ -79,6 +79,19 @@ export class Player {
     this.velocity.x += (tx - this.velocity.x) * k;
     this.velocity.z += (tz - this.velocity.z) * k;
 
+    if (this.noclip) {
+      // debug fly: move along the view direction, no collision, no gravity
+      const cp = Math.cos(this.pitch), spd = speed * 1.5;
+      this.pos.x += (-sin * cp * my + cos * mx) * spd * dt;
+      this.pos.z += (-cos * cp * my - sin * mx) * spd * dt;
+      this.pos.y += (Math.sin(this.pitch) * my + (input.flyUp ? 1 : 0)) * spd * dt;
+      this.velocity.set(0, 0, 0); this.vy = 0; this.grounded = true;
+      this.eyeY = this.pos.y + P.eyeHeight;
+      this.camera.position.set(this.pos.x, this.eyeY, this.pos.z);
+      this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+      this.forward.set(-sin, 0, -cos);
+      return;
+    }
     // sub-step fast movement so sprinting can't tunnel through thin walls
     const dist = Math.hypot(this.velocity.x, this.velocity.z) * dt;
     const n = Math.max(1, Math.ceil(dist / 0.15));

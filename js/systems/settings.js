@@ -1,7 +1,7 @@
 // User settings (separate from the save game so "reset save" keeps them).
 import { CONFIG } from '../config.js';
 
-const DEFAULTS = { sensitivity: 1, invertY: false, ps1: false };
+const DEFAULTS = { sensitivity: 1, invertY: false, alwaysDay: false, minimap: true };
 
 export function loadSettings() {
   try {

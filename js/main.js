@@ -14,6 +14,8 @@ import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
 import { Dungeon, RandomDungeon } from './world/dungeon.js';
 import { Screens } from './ui/screens.js';
+import { AdminMenu, DEBUG_DEFAULTS } from './ui/admin.js';
+import { addXp } from './systems/skills.js';
 import { EnemyManager } from './entities/enemyManager.js';
 import { CombatSystem } from './systems/combat.js';
 import { LootSystem } from './systems/loot.js';
@@ -39,6 +41,7 @@ class Game {
     this.hud = new HUD();
     this.menu = new Menu(this);
     this.screens = new Screens(this);
+    this.debug = { ...DEBUG_DEFAULTS };
     this.player = new Player(this.camera);
     this.overlayScene.add(this.camera);
 
@@ -59,6 +62,7 @@ class Game {
     this.combat = new CombatSystem(this);
     this.loot = new LootSystem(this);
     this.systems = [this.enemies, this.combat, this.loot]; // pluggable: { update(dt, game) }
+    this.admin = new AdminMenu(this);
     this.deathTimer = 0;
     events.on('playerDied', () => this.onPlayerDeath());
     events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
@@ -76,11 +80,16 @@ class Game {
     requestAnimationFrame((t) => this.frame(t));
   }
 
+  /** Phase shown in town: clock-driven unless "always day" (or debug) overrides it. */
+  townPhase() {
+    if (this.debug && this.debug.forcePhase) return this.debug.forcePhase;
+    return this.settings.alwaysDay ? 'day' : this.clock.phase;
+  }
+
   // ------------------------------------------------------------ settings
   applySettings() {
     this.input.settings.sensitivity = this.settings.sensitivity;
     this.input.settings.invertY = this.settings.invertY;
-    this.renderer.setPS1(this.settings.ps1);
     this.menu.syncSettings(this.settings);
   }
 
@@ -149,6 +158,39 @@ class Game {
     this.input.flush();
     this.input.requestLock();
     this.state.save();
+  }
+
+  openAdmin() {
+    if (!this.started) return;
+    if (this.menu.open) this.closeMenu();
+    if (this.screens.open) this.closeScreen();
+    this.admin.show();
+    this.input.enabled = false;
+    this.input.resetTouch();
+    this.input.releaseLock();
+  }
+
+  closeAdmin() {
+    if (!this.admin.open) return;
+    this.admin.hide();
+    this.input.enabled = true;
+    this.input.flush();
+    this.input.requestLock();
+  }
+
+  /** XP with level-up feedback (used by kills and the admin menu). */
+  giveXp(n) {
+    const lv = addXp(this.state.progression, n);
+    if (lv) this.hud.feed(`Level ${this.state.progression.level}! Skill point gained - visit the Hall of Paths`, '#e0b060');
+    return lv;
+  }
+
+  /** Main dungeon level N (step 6 replaces this with the levelled dungeon). */
+  enterDungeonLevel(level, toArena = false) {
+    if (!this.state.inRun) this.state.startRun();
+    this.dungeonLevel = level;
+    this.pendingArena = toArena;
+    this.travelTo('dungeon', 'portal');
   }
 
   openMenu() {
@@ -297,6 +339,14 @@ class Game {
       return;
     }
 
+    if (this.admin.open) {
+      this.admin.handleInput(input);
+      this.admin.update(dt);
+      input.flush();
+      return; // paused
+    }
+    if (input.consume('admin')) { this.openAdmin(); input.flush(); return; }
+    this.admin.update(dt);
     if (this.screens.open) {
       this.screens.handleInput(input);
       input.flush();
@@ -360,7 +410,7 @@ class Game {
     }
 
     this.hud.setHp(this.player.hp, this.player.maxHp);
-    this.hud.setClock(this.clock, area.hostile);
+    this.hud.setClock(this.clock, area.hostile, this.townPhase());
     const st = this.state;
     const runItems = st.run.items.reduce((a, i) => a + i.qty, 0);
     const flasks = st.count('ashen_flask');

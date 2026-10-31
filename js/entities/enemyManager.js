@@ -13,6 +13,16 @@ export class EnemyManager {
     for (const s of area.enemySpawns || []) this.list.push(new Enemy(s.type, s.pos, area));
   }
 
+  /** Spawn one enemy (or boss) at a world position - used by the admin menu and bosses. */
+  spawnAt(type, pos, area = this.game.area, opts = {}) {
+    const g = area.collision.groundHeight(pos.x, pos.z, 0.3, pos.y + 2, 4);
+    const p = pos.clone(); if (g > -Infinity) p.y = g;
+    const e = new Enemy(type, p, area, opts);
+    if (opts.aggro !== false) { e.state = 'alert'; e.timer = 0.3; }
+    this.list.push(e);
+    return e;
+  }
+
   clear() {
     for (const e of this.list) e.dispose();
     this.list.length = 0;

@@ -20,14 +20,14 @@ export const PHASES = {
     sky: { top: 0x545a62, horizon: 0x76746c, bottom: 0x3a3832, clouds: 0x9a978e, cloudOpacity: 0.85, stars: false, orbColor: 0xb0aaa0, orbOpacity: 0.3, moon: false },
     hemiSky: 0xa0a8b0, hemiGround: 0x40362a, hemi: 1.7,
     sun: 0xd8d0c0, sunI: 1.5, sunPos: [-40, 70, 30],
-    torch: 0.3, lantern: 0, window: 0x161210, mountains: 0x3c3c3a, dust: [0.5, 0.48, 0.44],
+    torch: 0.3, lantern: 0.7, window: 0x161210, mountains: 0x3c3c3a, dust: [0.5, 0.48, 0.44],
   },
   night: {
     fog: 0x07090e, near: 2, far: 30,
     sky: { top: 0x010205, horizon: 0x0a0d15, bottom: 0x040506, clouds: 0x161a22, cloudOpacity: 0.7, stars: true, orbColor: 0x6a7a9a, orbOpacity: 0.5, moon: true },
     hemiSky: 0x2a3550, hemiGround: 0x080706, hemi: 0.5,
     sun: 0x7080a8, sunI: 0.28, sunPos: [-60, 90, -90],
-    torch: 1.0, lantern: 3.6, window: 0xb85a1c, mountains: 0x05060a, dust: [0.3, 0.3, 0.34],
+    torch: 1.0, lantern: 4.2, window: 0xb85a1c, mountains: 0x05060a, dust: [0.3, 0.3, 0.34],
   },
 };
 
@@ -289,10 +289,11 @@ export class Town extends Area {
   weaponLighting() { return this.phase === 'day' ? [1.6, 0.1] : [0.5, 2.2]; }
 
   onEnter() {
-    this.applyPhase(this.game.clock.phase);
+    this.applyPhase(this.game.townPhase());
   }
 
   update(dt, player) {
+    if (this.game.townPhase() !== this.phase) this.applyPhase(this.game.townPhase());
     super.update(dt, player);
     this.sky.update(dt, this.game.camera);
     // dim sky/sun light when indoors so interiors read as interiors

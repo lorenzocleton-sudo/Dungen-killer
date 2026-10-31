@@ -243,3 +243,21 @@ body.touch #btn-use.show { display: flex !important; }
 #sprint-ind { position: absolute; left: 50%; transform: translateX(-50%); bottom: 34px; font-size: 12px; letter-spacing: 3px; color: #c8a060; opacity: 0; transition: opacity 0.2s; }
 #sprint-ind.show { opacity: 0.8; }
 #flask-count { position: absolute; left: max(14px, env(safe-area-inset-left)); top: 50px; }
+
+/* ---------------------------------------------------------------- admin */
+#admin { position: fixed; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center; background: rgba(0, 4, 12, 0.7); touch-action: auto; }
+#admin.hidden { display: none; }
+.adm-box { width: min(1000px, 97vw); max-height: 94vh; overflow: auto; background: #0a0e14; border: 2px solid #2a4060; padding: 10px 14px; color: #b0c8e0; font-family: "Courier New", monospace; font-size: 13px; }
+.adm-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; } .adm-head b { color: #80c0ff; letter-spacing: 3px; }
+.adm-msg { flex: 1; color: #f0d080; }
+.adm-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.adm-cols section { border: 1px solid #1e2c40; padding: 6px 8px; background: #0e141c; }
+.adm-cols h4 { margin: 0 0 6px; color: #80c0ff; font-weight: normal; letter-spacing: 2px; }
+.adm-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.adm-row input[type=range] { flex: 1; }
+.adm-row input[type=checkbox] { width: 20px; height: 20px; }
+.adm-btns { display: flex; gap: 5px; margin: 5px 0; flex-wrap: wrap; align-items: center; }
+.adm-btns button, #admin select, #admin input[type=number] { font-family: inherit; font-size: 12px; padding: 6px 8px; background: #142030; color: #c0d8f0; border: 1px solid #2a4060; }
+#admin select { max-width: 150px; } #admin input[type=number] { width: 70px; }
+#fps { position: fixed; left: 50%; transform: translateX(-50%); top: 4px; z-index: 6; color: #80ff80; font: 12px monospace; text-shadow: 1px 1px 0 #000; pointer-events: none; display: none; }
+#run-info { pointer-events: auto; }

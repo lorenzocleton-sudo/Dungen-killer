@@ -49,7 +49,7 @@ export class CollisionWorld {
     let best = -Infinity;
     const list = this.query(x - r, z - r, x + r, z + r, this._q1 || (this._q1 = []));
     for (const b of list) {
-      if (b.maxY > feetY + step) continue;
+      if (b.disabled || b.maxY > feetY + step) continue;
       if (x + r < b.minX || x - r > b.maxX || z + r < b.minZ || z - r > b.maxZ) continue;
       if (b.maxY > best) best = b.maxY;
     }
@@ -65,7 +65,7 @@ export class CollisionWorld {
       let moved = false;
       const list = this.query(pos.x - r, pos.z - r, pos.x + r, pos.z + r, this._q2 || (this._q2 = []));
       for (const b of list) {
-        if (b.maxY <= feetY + step || b.minY >= feetY + height) continue;
+        if (b.disabled || b.maxY <= feetY + step || b.minY >= feetY + height) continue;
         const cx = Math.max(b.minX, Math.min(pos.x, b.maxX));
         const cz = Math.max(b.minZ, Math.min(pos.z, b.maxZ));
         let dx = pos.x - cx, dz = pos.z - cz;
@@ -98,7 +98,7 @@ export class CollisionWorld {
       const x = ax + dx * t, y = ay + dy * t, z = az + dz * t;
       const list = this.query(x, z, x, z, this._q3 || (this._q3 = []));
       for (const b of list) {
-        if (x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ && y > b.minY && y < b.maxY) return false;
+        if (!b.disabled && b.tag !== 'npc' && x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ && y > b.minY && y < b.maxY) return false;
       }
     }
     return true;

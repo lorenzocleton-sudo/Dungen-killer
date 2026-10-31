@@ -62,8 +62,11 @@ export class Input {
       this._setDevice('kbm');
       this.keys.add(e.code);
       switch (e.code) {
-        case 'Space': case 'KeyF': case 'KeyJ': this.trigger('hit'); break;
+        case 'KeyF': case 'KeyJ': this.trigger('hit'); break;
+        case 'Space': this.trigger('roll'); break;
         case 'Escape': case 'KeyP': this.trigger('menu'); e.preventDefault(); break;
+        case 'F1': this.trigger('admin'); e.preventDefault(); break;
+        case 'KeyM': this.trigger('map'); break;
         case 'KeyI': case 'Tab': case 'KeyB': this.trigger('inventory'); e.preventDefault(); break;
         case 'KeyE': this.trigger('interact'); break;
         case 'KeyR': this.trigger('flask'); break;
@@ -197,6 +200,7 @@ export class Input {
     bindBtn('btn-use', 'interact');
     bindBtn('btn-flask', 'flask');
     bindBtn('btn-run', 'sprint_toggle');
+    bindBtn('btn-roll', 'roll');
   }
 
   _drawJoy() {
@@ -227,14 +231,14 @@ export class Input {
     let [lx, ly] = deadzone(pad.axes[2] || 0, pad.axes[3] || 0);
     let any = Math.abs(mx) + Math.abs(my) + Math.abs(lx) + Math.abs(ly) > 0;
     if (edge(0) || edge(2) || edge(5) || edge(7)) this.trigger('hit');
-    if (edge(9)) this.trigger('menu');
+    if (edge(9)) this.trigger(b(4) && b(5) ? 'admin' : 'menu');   // LB+RB+Start = admin
     if (edge(8)) this.trigger('inventory');
     if (edge(3)) this.trigger('interact');
     if (edge(4)) this.trigger('flask');
     if (edge(10)) this.trigger('sprint_toggle');   // L3 click toggles sprint
     if (edge(6)) this.trigger('tab_prev');
     if (edge(5) || edge(7)) this.trigger('tab_next');
-    if (edge(1)) { this.trigger('nav_back'); this.trigger('cancel'); }
+    if (edge(1)) { this.trigger('nav_back'); this.trigger('cancel'); this.trigger('roll'); }
     if (edge(0)) this.trigger('nav_ok');
     if (edge(12)) this.trigger('nav_up');
     if (edge(13)) this.trigger('nav_down');

@@ -82,7 +82,6 @@ function vcMaterial(mat) {
   if (!m) {
     m = mat.clone();
     m.vertexColors = true;
-    m.onBeforeCompile = mat.onBeforeCompile;
     vcCache.set(mat, m);
   }
   return m;

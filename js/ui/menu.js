@@ -12,10 +12,11 @@ export class Menu {
     this.focusIndex = 0;
 
     for (const t of this.root.querySelectorAll('.tab')) t.addEventListener('click', () => this.showTab(t.dataset.tab));
-    const sens = $('opt-sens'), inv = $('opt-invert'), ps1 = $('opt-ps1');
+    const sens = $('opt-sens'), inv = $('opt-invert');
     sens.addEventListener('input', () => game.setSetting('sensitivity', +sens.value));
     inv.addEventListener('change', () => game.setSetting('invertY', inv.checked));
-    ps1.addEventListener('change', () => game.setSetting('ps1', ps1.checked));
+    $('opt-day').addEventListener('change', () => game.setSetting('alwaysDay', $('opt-day').checked));
+    $('opt-minimap').addEventListener('change', () => game.setSetting('minimap', $('opt-minimap').checked));
     $('btn-resume').addEventListener('click', () => game.closeMenu());
     $('btn-fullscreen').addEventListener('click', () => game.toggleFullscreen());
     $('btn-reset').addEventListener('click', () => {
@@ -31,7 +32,8 @@ export class Menu {
     $('opt-sens').value = s.sensitivity;
     $('sens-val').textContent = (+s.sensitivity).toFixed(1);
     $('opt-invert').checked = s.invertY;
-    $('opt-ps1').checked = s.ps1;
+    $('opt-day').checked = !!s.alwaysDay;
+    $('opt-minimap').checked = s.minimap !== false;
   }
 
   show(device) {

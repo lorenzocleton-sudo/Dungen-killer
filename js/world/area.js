@@ -23,8 +23,8 @@ export class Area {
     this.sun.position.set(-30, 60, 20);
     this.scene.add(this.sun, this.sun.target);
     this.lights = new TorchLightPool(this.scene, 6);
-    // player-carried lantern: a soft warm light that follows the camera
-    this.lantern = new THREE.PointLight(0xffa860, 0, 10, 1.1);
+    // player-carried torch: a warm, softly flickering light around the player
+    this.lantern = new THREE.PointLight(0xff9a48, 0, 12, 1.3);
     this.scene.add(this.lantern);
     this.lanternIntensity = 0;
     this.glow = new ParticleSystem(this.scene, 500, true);   // embers, sparks, magic
@@ -65,8 +65,13 @@ export class Area {
     this.time += dt;
     const pp = player.pos;
     this.lights.update(dt, pp);
-    this.lantern.position.set(pp.x, player.eyeY + 0.2, pp.z).addScaledVector(player.forward, 0.4);
-    this.lantern.intensity = this.lanternIntensity * (0.95 + Math.sin(this.time * 7) * 0.03 + Math.sin(this.time * 17) * 0.02);
+    this.lantern.position.set(pp.x, player.eyeY + 0.1, pp.z).addScaledVector(player.forward, 0.3);
+    // torch flicker: layered sines + smoothed noise, never fully dark
+    this._flickN = (this._flickN || 0) + ((Math.random() - 0.5) * 0.5 - (this._flickN || 0)) * Math.min(1, dt * 12);
+    const t = this.time;
+    const f = 0.9 + Math.sin(t * 6.3) * 0.04 + Math.sin(t * 13.7 + 1.3) * 0.03 + Math.sin(t * 23.1) * 0.02 + this._flickN * 0.12;
+    this.lantern.intensity = this.lanternIntensity * f;
+    this.lantern.color.setRGB(1, 0.6 + f * 0.05, 0.28 + f * 0.04);
 
     for (const e of this.emitters) {
       if (Math.abs(e.pos.x - pp.x) > 24 || Math.abs(e.pos.z - pp.z) > 24) continue;
