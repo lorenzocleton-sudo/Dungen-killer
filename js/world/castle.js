@@ -11,6 +11,8 @@ import { RANKS } from '../systems/renown.js';
 import { box, mesh, portal, hero, npc, interactable, brazier, fire, chest } from './props.js';
 import { boxGeo, trs } from '../engine/geometry.js';
 import { litMaterial, basicMaterial } from '../engine/materials.js';
+import { Sky } from './sky.js';
+import { PHASES } from './town.js';
 
 const W = 40, H = 34;
 // [char, col, row, w, h, name]  levels: T/u = up one storey, d/D = down one
@@ -72,10 +74,12 @@ export class Castle extends Dungeon {
   build() {
     super.build();
     const A = this;
+    this.sky = new Sky(this.scene);
+    this.phase = null;
     // way back to town: gate on the courtyard's south wall
     const gp = this.cc(20, 27);
     portal(A, { x: gp.x, z: 28 * CELL - 0.9, y: 0, yaw: Math.PI, target: 'town', spawn: 'castle', color: 'blue', label: 'Return to Ashen Hollow' });
-    const sp = this.cc(20, 26.2);
+    const sp = this.cc(20, 25);
     this.spawns.start = { pos: sp, yaw: 0 };
     this.spawns.portal = this.spawns.start;
     this.mapMarkers.push({ x: this.cc(20, 3).x, z: this.cc(20, 3).z, type: 'boss' });
@@ -186,7 +190,39 @@ export class Castle extends Dungeon {
     } else g.hud.speak('King Aldemar: "My Blade. The deep dark below the catacombs is sealed... for now. Be ready."', 6);
   }
 
+  /** The castle shares the town's sky: same DAY / NIGHT as Emberwick. */
+  applyPhase(phase) {
+    this.phase = phase;
+    const p = PHASES[phase];
+    this.scene.fog.color.set(p.fog);
+    this.scene.fog.near = p.near; this.scene.fog.far = p.far + 10;
+    this.scene.background = new THREE.Color(p.fog);
+    this.sky.setPalette(p.sky);
+    this.hemi.color.set(p.hemiSky); this.hemi.groundColor.set(p.hemiGround);
+    this.sun.color.set(p.sun); this.sun.position.set(...p.sunPos);
+    this.lanternIntensity = phase === 'day' ? 1.2 : 4;
+  }
+
+  onEnter() {
+    super.onEnter();
+    this.applyPhase(this.game.townPhase());
+  }
+
+  weaponLighting() { return this.phase === 'day' ? [1.4, 0.4] : [0.5, 2.2]; }
+
   update(dt, player) {
+    if (this.game.townPhase() !== this.phase) this.applyPhase(this.game.townPhase());
+    this.sky.update(dt, this.game.camera);
+    // open-air cells (courtyard, towers) get full sky light; halls are dimmer and torch-lit
+    const p = PHASES[this.phase];
+    const c = Math.floor(player.pos.x / CELL), r = Math.floor(player.pos.z / CELL);
+    const cell = this.at(r, c);
+    const out = cell && cell.sky ? 1 : 0;
+    this._out = this._out === undefined ? out : this._out + (out - this._out) * Math.min(1, dt * 3);
+    const k = 0.45 + this._out * 0.55;
+    this.hemi.intensity = Math.max(p.hemi * k, this.phase === 'day' ? 0.9 : 0.35);
+    this.sun.intensity = p.sunI * this._out;
+    this.lights.scale = this.phase === 'day' ? 0.6 + (1 - this._out) * 0.4 : 1;
     super.update(dt, player);
     // guards step aside for the renowned
     const ri = this.game.renown.rankIndex;

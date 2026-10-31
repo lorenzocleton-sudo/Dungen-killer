@@ -220,11 +220,7 @@ export class Dungeon extends Area {
     for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (this.grid[r][c].portal) { pr = r; pc = c; }
     if (!this.noAutoPortal) portal(A, { x: (pc + 0.5) * CELL, z: pr * CELL + 0.9, y: 0, yaw: 0, target: 'town', spawn: this.returnSpawn, color: 'blue', label: 'Return to Ashen Hollow' });
     this.spawns.portal = { pos: new THREE.Vector3((pc + 0.5) * CELL, 0, (pr + 2.7) * CELL), yaw: Math.PI };
-    if (this.layout && this.layout.exit) {
-      // face the way out of the entrance room
-      const [ec, er] = this.layout.exit, sp = this.spawns.portal.pos;
-      this.spawns.portal.yaw = Math.atan2(-((ec + 0.5) * CELL - sp.x), -((er + 0.5) * CELL - sp.z));
-    }
+    // arrive facing away from the portal (it sits on the room's north wall)
     this.spawns.start = this.spawns.portal;
 
     this.enemySpawns = this.spawnList.map(([c, r, type, opts]) => ({ type, pos: this.cellCenter(c, r), opts: { ...this.enemyOpts, ...opts } }));

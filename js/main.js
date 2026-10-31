@@ -271,6 +271,7 @@ class Game {
     if (!this.areas[id]) {
       const a = AREA_FACTORIES[id](this);
       a.build();
+      a.finish(); // merge anything a subclass added after its base build (portals, gates)
       this.areas[id] = a;
     }
     return this.areas[id];
