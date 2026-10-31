@@ -63,6 +63,7 @@ export class GameState {
     return lost;
   }
 
+  addGear(slot, item) { (this.inRun ? this.run : this.saved).gear[slot] = item; }
   addCurrency(n) { (this.inRun ? this.run : this.saved).currency += n; }
   addItem(item) {
     const inv = this.inRun ? this.run : this.saved;

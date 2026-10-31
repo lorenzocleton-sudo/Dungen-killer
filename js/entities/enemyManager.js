@@ -24,8 +24,10 @@ export class EnemyManager {
     const g = this.game;
     const ctx = { player: g.player, collision: g.area.collision, enemies: this.list };
     for (const e of this.list) {
-      // far-away enemies sleep to save CPU on tablets
-      if (!e.dead && e.state === 'idle' && e.pos.distanceToSquared(g.player.pos) > 900) continue;
+      // far-away enemies sleep (and hide inside the fog) to save CPU/GPU on tablets
+      const d2 = e.pos.distanceToSquared(g.player.pos);
+      e.group.visible = d2 < 900;
+      if (!e.dead && e.state === 'idle' && d2 > 900) continue;
       e.update(dt, ctx);
     }
     for (let i = this.list.length - 1; i >= 0; i--) {

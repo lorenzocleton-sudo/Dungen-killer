@@ -5,8 +5,8 @@ import * as THREE from '../../lib/three.module.min.js';
 import { litMaterial } from '../engine/materials.js';
 
 const POSES = {
-  rest: { p: [0.34, -0.36, -0.62], r: [0.25, 0.15, -0.12] },
-  windup: { p: [0.52, -0.12, -0.5], r: [-0.25, -0.55, -1.25] },
+  rest: { p: [0.36, -0.42, -0.66], r: [-0.6, 0.25, -0.3] },
+  windup: { p: [0.5, -0.18, -0.55], r: [-0.35, -0.55, -1.25] },
   end: { p: [-0.4, -0.42, -0.58], r: [0.35, 0.9, 1.45] },
 };
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -29,6 +29,7 @@ export class Weapon {
     pommel.position.y = -0.12;
     this.sword = new THREE.Group();
     this.sword.add(blade, tip, guard, handle, pommel);
+    this.sword.scale.setScalar(0.8);
     this.root.add(this.sword);
     // gloved hand
     const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.11), litMaterial('clothBrown'));

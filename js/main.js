@@ -15,6 +15,7 @@ import { Town } from './world/town.js';
 import { Dungeon } from './world/dungeon.js';
 import { EnemyManager } from './entities/enemyManager.js';
 import { CombatSystem } from './systems/combat.js';
+import { LootSystem } from './systems/loot.js';
 
 // Registry of areas. New areas register a factory here.
 const AREA_FACTORIES = {
@@ -53,7 +54,11 @@ class Game {
     this.saveTimer = 0;
     this.enemies = new EnemyManager(this);
     this.combat = new CombatSystem(this);
-    this.systems = [this.enemies, this.combat]; // pluggable: { update(dt, game) }
+    this.loot = new LootSystem(this);
+    this.systems = [this.enemies, this.combat, this.loot]; // pluggable: { update(dt, game) }
+    this.deathTimer = 0;
+    events.on('playerDied', () => this.onPlayerDeath());
+    events.on('playerFellOut', () => { if (!this.player.dead) { this.player.invuln = 0; this.player.damage(99999); } });
 
     this.input.onDeviceChange = (d) => this.hud.setDevice(d);
     this.hud.setDevice(this.input.device);
@@ -202,6 +207,37 @@ class Game {
     this.travelTo(portal.target, portal.spawn || 'portal');
   }
 
+  // ------------------------------------------------------------ death
+  /** Death rule: RUN is wiped, SAVED + progression survive, wake in town. */
+  onPlayerDeath() {
+    const run = this.state.run;
+    const nItems = run.items.reduce((a, i) => a + i.qty, 0) + Object.keys(run.gear).length;
+    const parts = [];
+    if (run.currency) parts.push(`${run.currency} ashes`);
+    if (nItems) parts.push(`${nItems} item${nItems > 1 ? 's' : ''}`);
+    this.state.loseRun();
+    this.state.save();
+    this.hud.showDeath(true, parts.length ? `Lost: ${parts.join(', ')}` : 'You carried nothing worth losing.');
+    this.hud.prompt('');
+    this.deathTimer = 4.2;
+    this.respawning = false;
+  }
+
+  respawn() {
+    this.respawning = true;
+    this.hud.fade(true);
+    setTimeout(() => {
+      this.hud.showDeath(false);
+      this.player.dead = false;
+      this.player.hp = this.player.maxHp;
+      this.player.invuln = 1;
+      this.travelTo('town', 'respawn', true);
+      this.hud.fade(false);
+      this.hud.banner(this.area.name, 'you wake beside the old well');
+      this.respawning = false;
+    }, 600);
+  }
+
   // ------------------------------------------------------------ loop
   frame(now) {
     requestAnimationFrame((t) => this.frame(t));
@@ -243,6 +279,10 @@ class Game {
     }
 
     const area = this.area;
+    if (this.player.dead && !this.respawning) {
+      this.deathTimer -= dt;
+      if (this.deathTimer <= 0) this.respawn();
+    }
     this.player.update(dt, input, area.collision);
     for (const s of this.systems) s.update(dt, this);
     area.update(dt, this.player);
@@ -267,8 +307,9 @@ class Game {
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.setClock(this.clock, area.hostile);
     const st = this.state;
+    const runItems = st.run.items.reduce((a, i) => a + i.qty, 0) + Object.keys(st.run.gear).length;
     this.hud.setRunInfo(st.inRun
-      ? `Run: ${st.run.currency} ashes${st.run.items.length ? ' · ' + st.run.items.reduce((a, i) => a + i.qty, 0) + ' relics' : ''}  ·  Kept: ${st.saved.currency}`
+      ? `Run: ${st.run.currency} ashes${runItems ? ' · ' + runItems + ' item' + (runItems > 1 ? 's' : '') : ''}  ·  Kept: ${st.saved.currency}`
       : `Ashes: ${st.saved.currency}  ·  Lv ${st.progression.level}`);
     this.hud.update(dt, this.camera);
     input.flush();
