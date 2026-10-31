@@ -4,9 +4,15 @@ export const CONFIG = {
     radius: 0.35,
     height: 1.75,
     eyeHeight: 1.6,
-    speed: 4.2,
+    speed: 7.2,         // Doom-style: always running, instant acceleration
     step: 0.45,
-    gravity: 22,
+    gravity: 24,
+    jump: 7.6,          // ~1.2 m jump
+    airAccel: 10,       // Quake-style air acceleration (full air control + strafe-jumping)
+    maxAirSpeed: 15,
+    dashSpeed: 24, dashTime: 0.17, dashRecharge: 1.4, dashIframes: 0.22,
+    mantleReach: 1.45,  // ledge height above the feet you can pull yourself onto while airborne
+    fallSafe: 6,        // metres of free fall before fall damage
     maxHp: 100,
   },
   look: {

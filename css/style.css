@@ -230,14 +230,33 @@ button.resume { width: 100%; margin-top: 14px; padding: 12px; font-size: 17px; }
 .dmg.burn { color: #ff7a2a; font-size: 15px; }
 
 /* extra touch buttons */
-#btn-bag, #btn-use, #btn-flask, #btn-run {
+#btn-bag, #btn-use, #btn-flask, #btn-jump, #btn-block, #btn-quick, #btn-order {
   position: absolute; align-items: center; justify-content: center; pointer-events: auto; z-index: 5; touch-action: none;
   background: rgba(20, 14, 10, 0.6); border: 2px solid rgba(120, 100, 70, 0.6); color: #c8b890;
 }
 #btn-bag { right: max(66px, calc(env(safe-area-inset-right) + 52px)); top: 52px; width: 44px; height: 44px; font-size: 20px; }
 #btn-flask { right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 14px); bottom: 9vh; width: 58px; height: 58px; border-radius: 50%; font-size: 13px; flex-direction: column; }
-#btn-run { right: calc(max(4vw, env(safe-area-inset-right)) + 10px); bottom: calc(9vh + clamp(76px, 14vh, 120px) + 14px); width: 58px; height: 58px; border-radius: 50%; font-size: 13px; }
-#btn-run.on { background: rgba(110, 70, 26, 0.8); color: #fff0c8; border-color: #e0a050; }
+#btn-jump { right: calc(max(4vw, env(safe-area-inset-right)) + 6px); bottom: calc(9vh + clamp(76px, 14vh, 120px) + 12px); width: 66px; height: 66px; border-radius: 50%; font-size: 13px; }
+#btn-block { right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 84px); bottom: 9vh; width: 54px; height: 54px; border-radius: 50%; font-size: 11px; }
+#btn-quick { right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 84px); bottom: calc(9vh + 62px); width: 50px; height: 50px; border-radius: 50%; font-size: 11px; }
+#btn-order { right: max(66px, calc(env(safe-area-inset-right) + 52px)); top: 106px; width: 44px; height: 36px; font-size: 11px; }
+#mp-bar { height: 5px; width: min(26vw, 200px); background: rgba(10,10,20,0.6); margin-top: 3px; border: 1px solid rgba(80,90,140,0.4); }
+#mp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #3a4a9a, #6a7ad8); }
+#dash-pips { margin-top: 4px; display: flex; gap: 4px; }
+#dash-pips i { width: 14px; height: 5px; background: #d8c8a0; opacity: 0.9; display: block; }
+#dash-pips i.empty { background: #403a30; }
+#skillbar { position: absolute; left: 50%; transform: translateX(-50%); bottom: 58px; display: flex; gap: 6px; pointer-events: auto; }
+#skillbar .sk { width: 44px; height: 44px; border: 1px solid rgba(200,170,110,0.5); background: rgba(14,10,8,0.7); position: relative; display: flex; align-items: center; justify-content: center; color: #e8d8b0; font-size: 20px; }
+#skillbar .sk.empty { opacity: 0.35; }
+#skillbar .sk .sk-cd { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.65); height: 0; }
+#skillbar .sk .sk-key { position: absolute; left: 2px; top: 0; font-size: 10px; color: #a89070; }
+#skillbar .sk.nomana { filter: grayscale(1) brightness(0.6); }
+body.touch #skillbar { left: auto; transform: none; right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 150px); bottom: 9vh; flex-direction: column-reverse; gap: 6px; }
+body.touch #skillbar .sk { width: 48px; height: 48px; border-radius: 50%; }
+body.touch #skillbar .sk .sk-key { display: none; }
+#conquest-ctr, #pit-hud { position: absolute; left: 50%; transform: translateX(-50%); top: 64px; color: #f0d070; font-size: 14px; letter-spacing: 2px; text-shadow: 0 0 6px #000; display: none; text-align: center; }
+#conquest-ctr.show, #pit-hud.show { display: block; }
+#pit-hud button { pointer-events: auto; margin-top: 6px; background: rgba(40,20,10,0.9); color: #f0d8a0; border: 1px solid #c09050; padding: 8px 16px; font: inherit; cursor: pointer; }
 #btn-use { left: 50%; transform: translateX(-50%); bottom: 26%; padding: 10px 22px; font-size: 16px; letter-spacing: 2px; border-radius: 4px; display: none !important; }
 body.touch #btn-use.show { display: flex !important; }
 #sprint-ind { position: absolute; left: 50%; transform: translateX(-50%); bottom: 34px; font-size: 12px; letter-spacing: 3px; color: #c8a060; opacity: 0; transition: opacity 0.2s; }
@@ -266,7 +285,7 @@ body.touch #btn-use.show { display: flex !important; }
 #st-fill.tired { background: #6a3a20; }
 #st-bar.flash { animation: stflash 0.4s; }
 @keyframes stflash { 0%, 100% { border-color: #2e3424; } 50% { border-color: #e0c060; } }
-#btn-roll { position: absolute; right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 14px); bottom: calc(9vh + 72px); width: 58px; height: 58px; border-radius: 50%; font-size: 13px;
+#btn-roll { position: absolute; right: calc(max(4vw, env(safe-area-inset-right)) + clamp(76px, 14vh, 120px) + 14px); bottom: calc(9vh + 74px); width: 58px; height: 58px; border-radius: 50%; font-size: 13px;
   align-items: center; justify-content: center; pointer-events: auto; z-index: 5; touch-action: none; background: rgba(20, 14, 10, 0.6); border: 2px solid rgba(120, 100, 70, 0.6); color: #c8b890; }
 
 /* ---------------------------------------------------------------- big skill tree (scroll + zoom) */

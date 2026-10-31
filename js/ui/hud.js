@@ -6,9 +6,9 @@ import { fmtTime } from '../systems/clock.js';
 const $ = (id) => document.getElementById(id);
 
 const HINTS = {
-  kbm: 'WASD move · Shift / double-tap W sprint · Click hit · Space roll · E use · R flask · I inventory · M map · Esc menu',
-  touch: 'Left thumb: move · Swipe right: look · HIT strike · ROLL dodge · RUN toggles sprint · \u25C8 inventory',
-  gamepad: 'L-stick move (L3: sprint on/off) · R-stick look · A/RT hit · B roll · Y use · LB flask · Back inventory',
+  kbm: 'WASD move · Space jump · Shift dash · Click hit · Right-click block · 1-4 skills · E use · R flask · G item · I inventory · M map · L levels · Esc menu',
+  touch: 'Left thumb: move · Swipe right: look · HIT strike · JUMP · DASH · BLOCK · skills beside HIT · \u25C8 inventory',
+  gamepad: 'L-stick move · R-stick look · A jump · X/RT hit · B dash · LT block · D-pad skills · Y use · LB flask · RB item · Back inventory',
 };
 
 export class HUD {
@@ -59,6 +59,39 @@ export class HUD {
     el.style.width = Math.max(0, v / max) * 100 + '%';
     el.parentElement.style.width = `min(${(max / 100) * 26}vw, ${max * 2}px)`;
     el.classList.toggle('tired', !!exhausted);
+  }
+
+  setMana(v, max) {
+    const el = this._mp || (this._mp = document.getElementById('mp-fill'));
+    const w = Math.max(0, v / max) * 100;
+    if (Math.abs(w - (this._mpw || -1)) > 0.5) { el.style.width = w + '%'; this._mpw = w; }
+  }
+
+  setDash(n, max, cdK) {
+    const key = n + '/' + max;
+    if (key === this._dk) return;
+    this._dk = key;
+    const el = document.getElementById('dash-pips');
+    el.innerHTML = Array.from({ length: Math.min(max, 6) }, (_, i) => `<i class="${i < n ? '' : 'empty'}"></i>`).join('');
+  }
+
+  /** Skill bar: slots [{icon, color, cd (0..1), ready, mana}] */
+  setSkills(slots) {
+    for (let i = 0; i < 4; i++) {
+      const el = this._sk ? this._sk[i] : null;
+      if (!this._sk) this._sk = [1, 2, 3, 4].map((k) => document.getElementById('btn-sk' + k));
+      const s = slots[i], b = this._sk[i];
+      const key = s ? `${s.icon}|${Math.round(s.cd * 20)}|${s.mana}` : '-';
+      if (b._key === key) continue;
+      b._key = key;
+      b.classList.toggle('empty', !s);
+      b.classList.toggle('nomana', !!(s && !s.mana));
+      b.querySelector('.sk-ic').textContent = s ? s.icon : '';
+      b.querySelector('.sk-ic').style.color = s ? s.color : '';
+      b.querySelector('.sk-cd').style.height = s ? Math.round(s.cd * 100) + '%' : '0';
+      b.title = s ? s.name : '';
+      void el;
+    }
   }
 
   flashStamina() {

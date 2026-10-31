@@ -217,11 +217,61 @@ function tryGenerate(seed, opts) {
   const chest = arena ? null : [fc, far.y];
   braziers.push([far.x, far.y + far.h - 1], [far.x + far.w - 1, far.y + far.h - 1]);
   if (arena) for (const [dx, dy] of [[0, 0], [arena.w - 1, 0], [0, arena.h - 1], [arena.w - 1, arena.h - 1]]) braziers.push([arena.x + dx, arena.y + dy]);
+  // ---------------------------------------------------------- verticality
+  // daises (raised, jump up), pits (sunken, mantle out), trenches (jump across)
+  // and high secret alcoves (mantle / double jump) - never on the room's edge
+  // ring, so walking routes through every room stay open.
+  const occupied = new Set([...spawns, ...braziers, ...decor].map(([c, r]) => r * W + c));
+  if (opts.vertical !== false) {
+    for (const o of used) {
+      if (o.entrance || o.arena || o.w < 5 || o.h < 5) continue;
+      const ok = (c, r) => c > o.x && c < o.x + o.w - 1 && r > o.y && r < o.y + o.h - 1 && !cells[r][c].pillar && !occupied.has(r * W + c) && !cells[r][c].raise;
+      const roll = rnd();
+      for (let attempt = 0; attempt < 8; attempt++) {
+      if (roll < 0.3) {          // dais 2x2, 1 m up
+        const c0 = ri(o.x + 1, o.x + o.w - 3), r0 = ri(o.y + 1, o.y + o.h - 3);
+        const blk = [[c0, r0], [c0 + 1, r0], [c0, r0 + 1], [c0 + 1, r0 + 1]];
+        if (blk.every(([c, r]) => ok(c, r))) for (const [c, r] of blk) cells[r][c].raise = 1.0;
+      } else if (roll < 0.5) {   // pit 2x2, 2 m down
+        const c0 = ri(o.x + 1, o.x + o.w - 3), r0 = ri(o.y + 1, o.y + o.h - 3);
+        const blk = [[c0, r0], [c0 + 1, r0], [c0, r0 + 1], [c0 + 1, r0 + 1]];
+        if (blk.every(([c, r]) => ok(c, r))) for (const [c, r] of blk) { cells[r][c].raise = -2.0; cells[r][c].pit = true; }
+      } else if (roll < 0.65 && o.w >= 6) {   // trench: a 1-wide gap across the interior (a jump shortcut)
+        const c = ri(o.x + 2, o.x + o.w - 3);
+        const col = []; for (let r = o.y + 1; r < o.y + o.h - 1; r++) col.push([c, r]);
+        if (col.every(([cc, rr]) => ok(cc, rr))) for (const [cc, rr] of col) { cells[rr][cc].raise = -2.5; cells[rr][cc].pit = true; }
+      }
+      if (cells[o.y + 1].slice(o.x, o.x + o.w).some((x) => x.raise) || o.h > 2 && cells.slice(o.y + 1, o.y + o.h - 1).some((row) => row.slice(o.x + 1, o.x + o.w - 1).some((x) => x.raise))) break;
+      }
+    }
+    // one high secret alcove per level (sometimes two): a wall niche 2.4 m up with a chest
+    const secrets = [];
+    const want = rnd() < 0.6 ? 1 : 2;
+    for (let tries = 0; tries < 300 && secrets.length < want; tries++) {
+      const o = used[1 + Math.floor(rnd() * (used.length - 1))];
+      if (!o || o.arena) continue;
+      const side = Math.floor(rnd() * 4);
+      let c, r, dc, dr;
+      if (side === 0) { c = ri(o.x + 1, o.x + o.w - 2); r = o.y - 1; dc = 0; dr = -1; }
+      else if (side === 1) { c = ri(o.x + 1, o.x + o.w - 2); r = o.y + o.h; dc = 0; dr = 1; }
+      else if (side === 2) { c = o.x - 1; r = ri(o.y + 1, o.y + o.h - 2); dc = -1; dr = 0; }
+      else { c = o.x + o.w; r = ri(o.y + 1, o.y + o.h - 2); dc = 1; dr = 0; }
+      if (c < 2 || r < 2 || c >= W - 2 || r >= H - 2 || cells[r][c].type !== 'wall') continue;
+      // must be a niche: behind it and both sides are solid rock
+      const rock = (cc, rr) => cells[rr] && cells[rr][cc] && cells[rr][cc].type === 'wall';
+      const solid = rock(c + dc, r + dr) && rock(c + dr, r + dc) && rock(c - dr, r - dc) && rock(c + dc + dr, r + dr + dc) && rock(c + dc - dr, r + dr - dc);
+      const front = cells[r - dr][c - dc];
+      if (!solid || occupied.has((r - dr) * W + (c - dc)) || front.raise || front.pillar) continue;
+      cells[r][c] = { type: 'floor', level: o.level, raise: 2.4, secret: true, alcove: [dc, dr] };
+      secrets.push([c, r, dc, dr]);
+    }
+    var secretSpots = secrets;
+  }
   // map of cell -> room index (for the minimap's room reveal)
   used.forEach((o, i) => { for (let r = o.y; r < o.y + o.h; r++) for (let c = o.x; c < o.x + o.w; c++) cells[r][c].roomId = i; });
 
   return {
-    cells, rows: H, cols: W, spawns, braziers, decor, chest, portal, seed, rooms: used.length, exit: exitCell,
+    cells, rows: H, cols: W, spawns, braziers, decor, chest, portal, seed, rooms: used.length, exit: exitCell, secrets: secretSpots || [],
     roomRects: used.map((o) => ({ x: o.x, y: o.y, w: o.w, h: o.h, arena: !!o.arena })),
     far: { x: far.x, y: far.y, w: far.w, h: far.h, cx: fc, cy: fr },
     arena: arena && { x: arena.x, y: arena.y, w: arena.w, h: arena.h, cx: center(arena)[0], cy: center(arena)[1], entryDir: arena.entryDir || [0, 1] },

@@ -63,20 +63,22 @@ export class Input {
       this.keys.add(e.code);
       switch (e.code) {
         case 'KeyF': case 'KeyJ': this.trigger('hit'); break;
-        case 'Space': this.trigger('roll'); break;
+        case 'Space': this.trigger('jump'); break;
+        case 'ShiftLeft': case 'ShiftRight': this.trigger('roll'); break;   // dash
+        case 'KeyC': case 'ControlLeft': this.trigger('slam'); break;
+        case 'Digit1': this.trigger('skill1'); break;
+        case 'Digit2': this.trigger('skill2'); break;
+        case 'Digit3': this.trigger('skill3'); break;
+        case 'Digit4': this.trigger('skill4'); break;
+        case 'KeyG': this.trigger('quick'); break;
+        case 'KeyO': this.trigger('order'); break;
+        case 'KeyL': this.trigger('levelselect'); break;
         case 'Escape': case 'KeyP': this.trigger('menu'); e.preventDefault(); break;
         case 'F1': this.trigger('admin'); e.preventDefault(); break;
         case 'KeyM': this.trigger('map'); break;
         case 'KeyI': case 'Tab': case 'KeyB': this.trigger('inventory'); e.preventDefault(); break;
         case 'KeyE': this.trigger('interact'); break;
         case 'KeyR': this.trigger('flask'); break;
-        case 'KeyW': case 'KeyZ': {
-          // double-tap W = sprint until W is released
-          const now = performance.now();
-          if (now - (this._lastW || 0) < 320) this.wSprint = true;
-          this._lastW = now;
-          break;
-        }
         case 'ArrowUp': this.trigger('nav_up'); break;
         case 'ArrowDown': this.trigger('nav_down'); break;
         case 'ArrowLeft': this.trigger('nav_left'); break;
@@ -87,7 +89,6 @@ export class Input {
     });
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
-      if (e.code === 'KeyW' || e.code === 'KeyZ') this.wSprint = false;
     });
     window.addEventListener('blur', () => this.keys.clear());
   }
@@ -105,7 +106,10 @@ export class Input {
       this._setDevice('kbm');
       if (!this.pointerLocked) { this.requestLock(); return; }
       if (e.button === 0) this.trigger('hit');
+      if (e.button === 2) this.mouseBlock = true;
     });
+    document.addEventListener('mouseup', (e) => { if (e.button === 2) this.mouseBlock = false; });
+    c.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('mousemove', (e) => {
       if (!this.pointerLocked) return;
       this.mouseDX += e.movementX || 0;
@@ -191,16 +195,21 @@ export class Input {
         el.classList.add('pressed');
         this.trigger(action);
       }, { passive: false });
-      el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('pressed'); });
+      el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('pressed'); if (action === 'block') this.touchBlock = false; });
       el.addEventListener('mousedown', (e) => { e.stopPropagation(); this.trigger(action); });
+      if (action === 'block') el.addEventListener('touchstart', () => { this.touchBlock = true; }, { passive: true });
     };
     bindBtn('btn-hit', 'hit');
     bindBtn('btn-menu', 'menu');
     bindBtn('btn-bag', 'inventory');
     bindBtn('btn-use', 'interact');
     bindBtn('btn-flask', 'flask');
-    bindBtn('btn-run', 'sprint_toggle');
+    bindBtn('btn-jump', 'jump');
     bindBtn('btn-roll', 'roll');
+    bindBtn('btn-block', 'block');
+    bindBtn('btn-quick', 'quick');
+    bindBtn('btn-order', 'order');
+    for (let i = 1; i <= 4; i++) bindBtn('btn-sk' + i, 'skill' + i);
     bindBtn('btn-admin-hud', 'admin');
   }
 
@@ -231,21 +240,26 @@ export class Input {
     const [mx, my] = deadzone(pad.axes[0] || 0, pad.axes[1] || 0);
     let [lx, ly] = deadzone(pad.axes[2] || 0, pad.axes[3] || 0);
     let any = Math.abs(mx) + Math.abs(my) + Math.abs(lx) + Math.abs(ly) > 0;
-    if (edge(0) || edge(2) || edge(5) || edge(7)) this.trigger('hit');
+    // A jump · X / RT hit · B dash · LT block (hold) · Y use · LB flask · RB quick item
+    // D-pad: skills 1-4 (and menu navigation) · L3 ground slam · R3 map · Back inventory
+    if (edge(2) || edge(7)) this.trigger('hit');
+    if (edge(0)) this.trigger('jump');
     if (edge(9)) this.trigger(b(4) && b(5) ? 'admin' : 'menu');   // LB+RB+Start = admin
     if (edge(8)) this.trigger('inventory');
     if (edge(3)) this.trigger('interact');
     if (edge(4)) this.trigger('flask');
-    if (edge(10)) this.trigger('sprint_toggle');
-    if (edge(11)) this.trigger('map');               // R3 = map   // L3 click toggles sprint
+    if (edge(5)) this.trigger('quick');
+    if (edge(10)) this.trigger('slam');
+    if (edge(11)) this.trigger('map');
     if (edge(6)) this.trigger('tab_prev');
     if (edge(5) || edge(7)) this.trigger('tab_next');
     if (edge(1)) { this.trigger('nav_back'); this.trigger('cancel'); this.trigger('roll'); }
     if (edge(0)) this.trigger('nav_ok');
-    if (edge(12)) this.trigger('nav_up');
-    if (edge(13)) this.trigger('nav_down');
-    if (edge(14)) this.trigger('nav_left');
-    if (edge(15)) this.trigger('nav_right');
+    if (edge(12)) { this.trigger('nav_up'); this.trigger('skill1'); }
+    if (edge(15)) { this.trigger('nav_right'); this.trigger('skill2'); }
+    if (edge(13)) { this.trigger('nav_down'); this.trigger('skill3'); }
+    if (edge(14)) { this.trigger('nav_left'); this.trigger('skill4'); }
+    this.padBlock = b(6);
     // stick-as-dpad for menus
     const sy = pad.axes[1] || 0, sx = pad.axes[0] || 0;
     const st = Math.abs(sy) > 0.6 ? (sy > 0 ? 'd' : 'u') : Math.abs(sx) > 0.6 ? (sx > 0 ? 'r' : 'l') : '';
@@ -280,13 +294,11 @@ export class Input {
     this.look.y = (this.mouseDY * CONFIG.look.mouse + this.touchLookDY * tScale + gp.ly * CONFIG.look.gamepad * dt) * sens * inv;
     this.mouseDX = this.mouseDY = this.touchLookDX = this.touchLookDY = 0;
 
-    // sprint: Shift held, double-tap W, or the gamepad/touch toggle
-    if (this.actions.has('sprint_toggle')) { this.actions.delete('sprint_toggle'); this.sprintToggle = !this.sprintToggle; }
-    this.sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || !!this.wSprint || !!this.sprintToggle;
-    const runBtn = document.getElementById('btn-run');
-    if (runBtn) runBtn.classList.toggle('on', !!this.sprintToggle);
+    // block is held (right mouse / LT / touch BLOCK)
+    this.block = !!(this.mouseBlock || this.padBlock || this.touchBlock);
+    this.sprint = false;
 
-    if (!this.enabled) { this.move.x = this.move.y = 0; this.look.x = this.look.y = 0; }
+    if (!this.enabled) { this.move.x = this.move.y = 0; this.look.x = this.look.y = 0; this.block = false; }
   }
 
   /** Clear queued gameplay actions (e.g. when closing a menu). */

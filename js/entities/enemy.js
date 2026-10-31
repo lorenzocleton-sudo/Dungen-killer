@@ -59,7 +59,15 @@ export class Enemy {
     this.mass = MASS[this.sizeClass] * (this.def.boss ? 2 : 1);
     this.navNeed = NavGrid.need(this._r);
     this.leash = opts.leash || null;
-    this.agility = opts.agility || 0;
+    // agility by depth: L1-5 walk/chase; L6-15 faster, drop from ledges, sidestep;
+    // L16-25 jump gaps, leap, flank, strafe-shoot, dodge; L26+ dash, pounce, climb, coordinate
+    const lv = opts.level || 1;
+    this.agility = opts.agility ?? (lv >= 26 ? 3 : lv >= 16 ? 2 : lv >= 6 ? 1 : 0);
+    if (this.sizeClass >= 2) this.agility = Math.min(this.agility, 1);    // large enemies never jump
+    this.spd = this.def.speed * [1, 1.15, 1.3, 1.45][this.agility] * (opts.speedMul || 1);
+    this.slamCd = 2 + Math.random() * 3;
+    this.leapCd = 2 + Math.random() * 3;
+    this.dashCd = 3 + Math.random() * 3;
     this.pos = pos.clone();
     this.home = pos.clone();
     this.vel = new THREE.Vector3();
@@ -239,14 +247,31 @@ export class Enemy {
           if (d.ranged && canSee && dist < d.ranged.range) {
             targetYaw = faceYaw;
             this.rangedCd -= dt;
-            if (dist < d.ranged.keep) { targetYaw = faceYaw + Math.PI; moveSpeed = d.speed * 0.8; }
+            if (dist < d.ranged.keep) { targetYaw = faceYaw + Math.PI; moveSpeed = this.spd * 0.8; }
+            else if (this.agility >= 2) { targetYaw = faceYaw + (this.id % 2 ? 1 : -1) * Math.PI / 2 * (Math.sin(this.anim * 0.7) > 0 ? 1 : -1); moveSpeed = this.spd * 0.55; } // strafe while shooting
             if (dist < d.range) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; this._startTele(); }
             else if (this.rangedCd <= 0) { this.state = 'windup'; this.timer = this.model.archer ? 1.1 : (d.ranged.windup || d.windup); this.shooting = true; this.drawT = 0; }
             break;
           }
-          if (dist < d.range * this.sizeMul + this.radius * 0.3 && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; this._startTele(); break; }
-          const wp = this.navTo(dt, player.pos.x, player.pos.z, player.pos.y);
-          if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = d.speed; }
+          if (dist < d.range * this.sizeMul + this.radius * 0.3 && Math.abs(dy) < 1.2) { this.state = 'windup'; this.timer = d.windup; this.shooting = false; this.slamming = false; this._startTele(); break; }
+          // heavy bodies slam the ground: a shockwave ring the player must jump over
+          this.slamCd -= dt;
+          if (this.sizeClass >= 2 && this.slamCd <= 0 && dist < 7 && canSee) { this.state = 'windup'; this.timer = 0.9; this.shooting = false; this.slamming = true; this.slamCd = 6 + Math.random() * 4; break; }
+          // agile enemies: leap / pounce at range, dash to close gaps
+          this.leapCd -= dt; this.dashCd -= dt;
+          if (this.agility >= 2 && !d.ranged && canSee && dist > 3.2 && dist < 7.5 && this.leapCd <= 0) { this._pounce(player, dist); break; }
+          if (this.agility >= 3 && canSee && dist > 5 && dist < 11 && this.dashCd <= 0) { this.dashCd = 3 + Math.random() * 2; this.vel.x += Math.sin(faceYaw) * 24; this.vel.z += Math.cos(faceYaw) * 24; this.area.dust.burst(this.pos.x, this.pos.y + 0.2, this.pos.z, 8, 2, 0.4, [0.3, 0.28, 0.25], 0.1, -2, 0.3); }
+          // flanking: agile packs come at you from different angles
+          let gx = player.pos.x, gz = player.pos.z;
+          if (this.agility >= 2 && dist > 2.6) { const ang = faceYaw + Math.PI + ((this.id * 2.39996) % (Math.PI * 2)) * (this.agility >= 3 ? 1 : 0.5) - Math.PI / 2; gx += Math.sin(ang) * 1.8; gz += Math.cos(ang) * 1.8; }
+          const wp = this.navTo(dt, gx, gz, player.pos.y) || this.navTo(0, player.pos.x, player.pos.z, player.pos.y);
+          if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = this.spd; this._wpY = wp.y; }
+          // sidestep (L6+): short sideways bursts while closing in
+          if (this.agility >= 1 && canSee && dist < 8 && dist > 2.5) {
+            this.strafeT = (this.strafeT || 0) - dt;
+            if (this.strafeT < -1.2 - (this.id % 5) * 0.3) this.strafeT = 0.55;
+            if (this.strafeT > 0) targetYaw = faceYaw + (this.id % 2 ? 1 : -1) * 1.0;
+          }
           // the player hid somewhere too small for this body: stop at the opening, never squeeze through
           if (!wp && dist < 12 && canSee) { this.state = 'blocked'; this.timer = 3 + Math.random(); break; }
           // give up when unreachable or the player is far away: walk back home
@@ -258,7 +283,7 @@ export class Enemy {
           const hd = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z);
           if (hd < 1.2) { this.state = 'idle'; this.timer = 1; this.hp = Math.min(this.maxHp, this.hp + this.maxHp * 0.25); break; }
           const wp = this.navTo(dt, this.home.x, this.home.z, this.home.y);
-          if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = d.speed * 0.7; }
+          if (wp) { targetYaw = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z); moveSpeed = this.spd * 0.7; this._wpY = wp.y; }
           else { this.state = 'idle'; this.home.copy(this.pos); }
           // re-engage if the player shows up close again
           this.senseTimer -= dt;
@@ -296,6 +321,7 @@ export class Enemy {
           if (!this._struck && this.timer <= d.strike * 0.5) {
             this._struck = true;
             if (this.shooting) this._shoot(ctx);
+            else if (this.slamming) { this.slamming = false; if (ctx.game.shockwave) ctx.game.shockwave(this, 7 + this.radius * 2, { frost: this.def.frost }); }
             else {
               this._clearTele();
               let ang = faceYaw - this.yaw; ang = Math.atan2(Math.sin(ang), Math.cos(ang));
@@ -310,6 +336,12 @@ export class Enemy {
           targetYaw = faceYaw;
           if (this.timer <= 0) this.state = 'chase';
           break;
+        case 'pounce': {
+          targetYaw = this.yaw;
+          if (!this._struck && dist < d.reach * this.sizeMul + 0.4 && Math.abs(dy) < 1.4) { this._struck = true; this.hitPlayer(player, d.damage, 1.1); }
+          if (this.timer <= 0 && this.vy === 0) { this.state = 'recover'; this.timer = d.recover; }
+          break;
+        }
         case 'stagger':
           if (this.timer <= 0) this.state = 'chase';
           break;
@@ -373,6 +405,27 @@ export class Enemy {
     return P[this.pathI];
   }
 
+  /** Leap at the player (agile, small/medium melee enemies only). */
+  _pounce(player, dist) {
+    const yaw = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+    this.yaw = yaw; this.leapCd = 4 + Math.random() * 3;
+    this.state = 'pounce'; this.timer = 0.55; this._struck = false;
+    const sp = Math.min(13, dist * 1.9);
+    this.vel.x = Math.sin(yaw) * sp; this.vel.z = Math.cos(yaw) * sp; this.vy = 6.5;
+  }
+
+  /** Agile enemies (L16+) sometimes dodge back when you swing at them. */
+  tryDodge(player) {
+    if (this.agility < 2 || this.dead || this.brain || !['chase', 'recover'].includes(this.state)) return false;
+    if ((this._dodgeCd || 0) > performance.now() || Math.random() > 0.35) return false;
+    this._dodgeCd = performance.now() + 2500;
+    const dx = this.pos.x - player.pos.x, dz = this.pos.z - player.pos.z, d = Math.hypot(dx, dz) || 1;
+    const side = Math.random() < 0.5 ? 1 : -1;
+    this.vel.x += (dx / d) * 9 + (-dz / d) * side * 4; this.vel.z += (dz / d) * 9 + (dx / d) * side * 4;
+    if (this.agility >= 3) this.vy = 4;
+    return true;
+  }
+
   _shoot(ctx) {
     const r = this.def.ranged, player = ctx.player;
     this.rangedCd = r.cooldown * (0.8 + Math.random() * 0.4);
@@ -389,7 +442,7 @@ export class Enemy {
   move(dt, moveSpeed, { player, collision, enemies }) {
     const vx = Math.sin(this.yaw) * moveSpeed + this.vel.x;
     const vz = Math.cos(this.yaw) * moveSpeed + this.vel.z;
-    this.vel.multiplyScalar(Math.max(0, 1 - dt * 7));
+    this.vel.multiplyScalar(Math.max(0, 1 - dt * (this.vy !== 0 ? 0.8 : 7)));   // momentum carries through a leap
     const r = this.radius, cr = Math.min(r, 2.2);
     const steps = Math.max(1, Math.ceil(Math.hypot(vx, vz) * dt / 0.2));
     const p = { x: this.pos.x, z: this.pos.z };
@@ -407,8 +460,12 @@ export class Enemy {
     }
     this.pos.x = p.x; this.pos.z = p.z;
     const g = collision.groundHeight(this.pos.x, this.pos.z, cr * 0.5, this.pos.y, STEP);
-    if (g > this.pos.y - STEP && g > -Infinity) { this.pos.y += (g - this.pos.y) * Math.min(1, dt * 20); this.vy = 0; }
-    else { this.vy -= 20 * dt; this.pos.y = Math.max(g, this.pos.y + this.vy * dt); }
+    // agile enemies hop up onto ledges their path climbs (L16+, never large ones)
+    if (this.vy === 0 && this.agility >= 2 && this.sizeClass < 2 && this._wpY !== undefined && this._wpY > this.pos.y + 0.5 && moveSpeed > 0.5) this.vy = this.agility >= 3 ? 9 : 7.5;
+    if (this.vy > 0 || g < this.pos.y - STEP || g === -Infinity) {
+      this.vy -= 20 * dt; this.pos.y += this.vy * dt;
+      if (this.pos.y <= g) { this.pos.y = g; this.vy = 0; }
+    } else { this.pos.y += (g - this.pos.y) * Math.min(1, dt * 20); this.vy = 0; }
     this.group.position.copy(this.pos);
     if (this.def.float) this.group.position.y += 0.35 + Math.sin(this.anim * 2) * 0.12;
     this.group.rotation.y = this.yaw;
@@ -431,7 +488,7 @@ export class Enemy {
       m.hips.position.y = m.hipY + Math.abs(Math.cos(ph)) * 0.04 * walk;
       m.head.rotation.z = Math.sin(t * 1.3) * 0.08;
       let armR = -sw * 0.4, armL = sw * 0.4;
-      if (winding) { armR = this.shooting ? -1.4 : -2.6 * k; m.torso.rotation.y = -0.5 * k; if (this.shooting) armL = -1.4; }
+      if (winding) { armR = this.shooting ? -1.4 : -2.6 * k; m.torso.rotation.y = this.slamming ? 0 : -0.5 * k; if (this.shooting) armL = -1.4; if (this.slamming) armL = -2.8 * k; }
       else if (striking) { armR = this.shooting ? -1.2 : 0.9; m.torso.rotation.y = 0.4; }
       else if (this.state === 'recover') { const q = Math.max(0, this.timer) / d.recover; armR = 0.9 * q; m.torso.rotation.y = 0.4 * q; }
       else m.torso.rotation.y *= 0.9;

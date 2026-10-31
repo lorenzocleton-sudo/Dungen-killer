@@ -118,9 +118,10 @@ export class Dungeon extends Area {
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const s = g[r][c];
       if (s.type === 'floor') {
-        s.floorY = -s.level * LEVEL_DROP;
+        const base = -s.level * LEVEL_DROP;
+        s.floorY = base + (s.raise || 0);
         s.minY = s.floorY;
-        s.ceilY = s.floorY + (s.hall ? HALL_CEIL : CEIL);
+        s.ceilY = s.secret ? s.floorY + 2.3 : base + (s.hall ? HALL_CEIL : CEIL);
       } else if (s.type === 'stair') {
         s.floorY = -s.level * LEVEL_DROP;           // high end
         s.minY = s.floorY - LEVEL_DROP;              // low end
@@ -214,6 +215,17 @@ export class Dungeon extends Area {
 
     this._torches();
     if (this.decorate) this.decorate(); else this._decorate();
+    // high secret alcoves: a chest you can only reach by mantling / double-jumping
+    for (const [c, r, dc, dr] of (this.layout && this.layout.secrets) || []) {
+      const p = this.cellCenter(c, r);
+      const x = p.x + dc * 0.55, z = p.z + dr * 0.55;   // at the back, leaving room to stand
+      chest(A, x, p.y, z, Math.atan2(-dc, -dr), () => {
+        this.game.loot.roll('chest', new THREE.Vector3(x - dc * 1.2, p.y, z - dr * 1.2), 4);
+        if (this.game.loot.secretBonus) this.game.loot.secretBonus(new THREE.Vector3(x - dc * 1.2, p.y, z - dr * 1.2));
+        this.game.hud.feed('A hidden cache!', '#f0d070');
+      });
+      wallTorch(A, p.x + dc * 1.2, p.y + 1.6, p.z + dr * 1.2, Math.atan2(-dc, -dr));
+    }
 
     // portal back to town, against the north wall of the entrance room
     let pr = 0, pc = 0;

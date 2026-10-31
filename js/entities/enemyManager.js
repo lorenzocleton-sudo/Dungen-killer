@@ -29,9 +29,9 @@ export class EnemyManager {
    * Large enemies only spawn where they fit AND can move: find a cell near the
    * spawn with enough clearance (and some room around it). Moves the enemy there.
    */
-  fit(e, area) {
+  fit(e, area, always = false) {
     const nav = area.getNav && area.getNav();
-    if (!nav || e.navNeed <= 0) return true;
+    if (!nav || (e.navNeed <= 0 && !always)) return true;
     const need = e.navNeed;
     const ok = (k) => {
       if (!nav.fits(k, need)) return false;
@@ -59,6 +59,7 @@ export class EnemyManager {
     const g = area.collision.groundHeight(pos.x, pos.z, 0.3, pos.y + 2, 4);
     const p = pos.clone(); if (g > -Infinity) p.y = g;
     const e = new Enemy(type, p, area, opts);
+    this.fit(e, area, true);           // snap onto open ground it fits on
     if (opts.aggro !== false) { e.state = 'alert'; e.timer = 0.3; }
     this.list.push(e);
     return e;

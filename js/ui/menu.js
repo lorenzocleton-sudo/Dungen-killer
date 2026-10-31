@@ -17,6 +17,8 @@ export class Menu {
     inv.addEventListener('change', () => game.setSetting('invertY', inv.checked));
     $('opt-day').addEventListener('change', () => game.setSetting('alwaysDay', $('opt-day').checked));
     $('opt-minimap').addEventListener('change', () => game.setSetting('minimap', $('opt-minimap').checked));
+    $('opt-bob').addEventListener('change', () => game.setSetting('headBob', $('opt-bob').checked));
+    $('opt-gfx').addEventListener('change', () => game.setSetting('gfx', $('opt-gfx').value));
     $('btn-resume').addEventListener('click', () => game.closeMenu());
     $('btn-fullscreen').addEventListener('click', () => game.toggleFullscreen());
     $('btn-admin').addEventListener('click', () => game.openAdmin());
@@ -35,6 +37,8 @@ export class Menu {
     $('opt-invert').checked = s.invertY;
     $('opt-day').checked = !!s.alwaysDay;
     $('opt-minimap').checked = s.minimap !== false;
+    $('opt-bob').checked = s.headBob !== false;
+    $('opt-gfx').value = s.gfx || 'med';
   }
 
   show(device) {

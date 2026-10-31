@@ -20,6 +20,8 @@
   <div id="hp-wrap">
     <div id="hp-bar"><div id="hp-lag"></div><div id="hp-fill"></div></div>
     <div id="st-bar"><div id="st-fill"></div></div>
+    <div id="mp-bar"><div id="mp-fill"></div></div>
+    <div id="dash-pips"></div>
     <div id="run-info"></div>
   </div>
   <div id="clock">
@@ -40,10 +42,21 @@
   <div id="btn-bag" class="touch-only">&#9672;</div>
   <div id="btn-admin-hud" class="touch-only">ADM</div>
   <div id="btn-flask" class="touch-only">FLASK</div>
-  <div id="btn-run" class="touch-only">RUN</div>
+  <div id="btn-jump" class="touch-only">JUMP</div>
   <div id="btn-use" class="touch-only">USE</div>
-  <div id="btn-roll" class="touch-only">ROLL</div>
-  <div id="sprint-ind">SPRINTING</div>
+  <div id="btn-roll" class="touch-only">DASH</div>
+  <div id="btn-block" class="touch-only">BLOCK</div>
+  <div id="btn-quick" class="touch-only">ITEM</div>
+  <div id="btn-order" class="touch-only">ORD</div>
+  <div id="skillbar">
+    <div id="btn-sk1" class="sk" data-k="1"><span class="sk-ic"></span><span class="sk-cd"></span><span class="sk-key">1</span></div>
+    <div id="btn-sk2" class="sk" data-k="2"><span class="sk-ic"></span><span class="sk-cd"></span><span class="sk-key">2</span></div>
+    <div id="btn-sk3" class="sk" data-k="3"><span class="sk-ic"></span><span class="sk-cd"></span><span class="sk-key">3</span></div>
+    <div id="btn-sk4" class="sk" data-k="4"><span class="sk-ic"></span><span class="sk-cd"></span><span class="sk-key">4</span></div>
+  </div>
+  <div id="conquest-ctr"></div>
+  <div id="pit-hud"></div>
+  <div id="sprint-ind"></div>
 </div>
 
 <div id="death"><div class="death-text">YOU DIED</div><div class="death-sub"></div></div>
@@ -69,6 +82,8 @@
         <label class="row check"><input id="opt-invert" class="focusable" type="checkbox"> Invert look Y</label>
         <label class="row check"><input id="opt-day" class="focusable" type="checkbox"> Always day in Emberwick <small>(a costly blessing of the Hearth-keepers)</small></label>
         <label class="row check"><input id="opt-minimap" class="focusable" type="checkbox"> Show minimap</label>
+        <label class="row check"><input id="opt-bob" class="focusable" type="checkbox"> Head bob + strafe tilt</label>
+        <label class="row">Graphics <select id="opt-gfx" class="focusable"><option value="low">Low (fast)</option><option value="med">Medium</option><option value="high">High</option></select></label>
         <div class="row buttons">
           <button id="btn-fullscreen" class="focusable">Fullscreen</button>
           <button id="btn-reset" class="focusable danger">Reset save</button>

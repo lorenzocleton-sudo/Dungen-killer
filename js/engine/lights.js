@@ -43,15 +43,16 @@ export class TorchLightPool {
       if (s.onFlicker) s.onFlicker(f);
     }
     const sorted = this.sources.filter((s) => s.enabled).sort((a, b) => a._d - b._d);
+    const active = Math.min(this.lights.length, TorchLightPool.maxActive);
     for (let i = 0; i < this.lights.length; i++) {
-      const l = this.lights[i], s = sorted[i];
+      const l = this.lights[i], s = i < active ? sorted[i] : null;
       if (!s) { l.intensity = 0; continue; }
       l.position.copy(s.pos);
       l.color.copy(s.color);
       l.distance = s.range;
       // fade the furthest pooled light so swaps don't pop
       let fade = 1;
-      if (i === this.lights.length - 1 && sorted[i + 1]) {
+      if (i === active - 1 && sorted[i + 1]) {
         const d0 = Math.sqrt(s._d), d1 = Math.sqrt(sorted[i + 1]._d);
         fade = Math.min(1, (d1 - d0) / 3);
       }
@@ -59,3 +60,6 @@ export class TorchLightPool {
     }
   }
 }
+
+/** Graphics preset: how many pooled lights may be lit at once. */
+TorchLightPool.maxActive = 6;

@@ -74,6 +74,7 @@ export class ParticleSystem {
 
   /** Radial burst helper. */
   burst(x, y, z, count, speed, life, color, size, grav = -6, up = 1) {
+    count = Math.max(1, Math.round(count * ParticleSystem.density));
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2, e = Math.random() * up;
       const s = speed * (0.4 + Math.random() * 0.6);
@@ -108,3 +109,6 @@ export class ParticleSystem {
     this.geo.attributes.aSize.needsUpdate = true;
   }
 }
+
+/** Graphics preset: fraction of burst particles actually spawned. */
+ParticleSystem.density = 1;

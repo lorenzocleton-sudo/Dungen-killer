@@ -52,6 +52,18 @@ export class CombatSystem {
       return true;
     };
     events.on('areaChanged', () => { this.lastStandUsed = false; });
+    // ground slam (movement unlock): shockwave where you land
+    events.on('playerSlam', ({ pos, height }) => {
+      const s = this.stats, dmg = Math.round((25 + Math.min(12, height) * 5) * (1 + s.damagePct / 100));
+      game.area.dust.burst(pos.x, pos.y + 0.2, pos.z, 36, 5, 0.8, [0.35, 0.3, 0.25], 0.14, -3, 0.6);
+      game.area.glow.burst(pos.x, pos.y + 0.3, pos.z, 20, 4, 0.5, [1, 0.6, 0.3], 0.06, -2, 0.5);
+      for (const e of game.enemies.list) {
+        if (e.dead || e.pos.distanceTo(pos) > 3.8 + e.radius) continue;
+        this._damageEnemy(e, dmg, 'crit', 2.2);
+        if (!e.brain && !e.dead) { e.state = 'stagger'; e.timer = 0.6; }
+      }
+    });
+    events.on('playerFallDamage', ({ amount }) => game.hud.feed(`Fall damage: ${amount}`, '#c06040'));
     events.on('enemyDot', ({ enemy, amount }) => game.hud.damageNumber(enemy.headPos(_v), amount, 'burn'));
     events.on('equipmentChanged', () => this.refreshStats());
   }
@@ -196,7 +208,10 @@ export class CombatSystem {
   update(dt) {
     const g = this.game, p = g.player;
     if (g.input.consume('hit') && !p.dead && !g.transitioning && !p.roll && this.weapon.ready) {
-      if (p.useStamina(12 * (1 - (this.stats.attackCostPct || 0) / 100))) this.weapon.swing();
+      if (p.useStamina(12 * (1 - (this.stats.attackCostPct || 0) / 100))) {
+        this.weapon.swing();
+        for (const e of g.enemies.list) if (!e.dead && e.pos.distanceTo(p.pos) < 3.6 + e.radius) e.tryDodge(p);
+      }
       else g.hud.flashStamina();
     }
     if (g.input.consume('flask')) this.drinkFlask();

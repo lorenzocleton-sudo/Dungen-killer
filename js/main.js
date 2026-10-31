@@ -12,6 +12,8 @@ import { WorldClock } from './systems/clock.js';
 import { GameState } from './systems/state.js';
 import { loadSettings, saveSettings } from './systems/settings.js';
 import { Town } from './world/town.js';
+import { TorchLightPool } from './engine/lights.js';
+import { ParticleSystem } from './engine/particles.js';
 import { MainDungeon, RandomDungeon } from './world/dungeon.js';
 import { Castle } from './world/castle.js';
 import { OutdoorDungeon } from './world/outdoor.js';
@@ -159,7 +161,17 @@ class Game {
   applySettings() {
     this.input.settings.sensitivity = this.settings.sensitivity;
     this.input.settings.invertY = this.settings.invertY;
-    this.menu.syncSettings(this.settings);
+    this.player.headBob = this.settings.headBob !== false;
+    // graphics preset (default: low on touch tablets, medium elsewhere)
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const gfx = this.settings.gfx || (coarse ? 'low' : 'med');
+    if (gfx !== this._gfx) {
+      this._gfx = gfx;
+      this.renderer.setQuality(gfx);
+      TorchLightPool.maxActive = { low: 4, med: 6, high: 6 }[gfx];
+      ParticleSystem.density = { low: 0.5, med: 0.8, high: 1 }[gfx];
+    }
+    this.menu.syncSettings({ ...this.settings, gfx });
   }
 
   setSetting(key, value) {
@@ -444,6 +456,12 @@ class Game {
     }
   }
 
+  /** Test/debug hook: advance the game by `seconds` in fixed steps (no rendering). */
+  simulate(seconds, dt = 1 / 60, each) {
+    const n = Math.round(seconds / dt);
+    for (let i = 0; i < n; i++) { this.update(dt); if (each) each(i * dt); }
+  }
+
   update(dt) {
     const input = this.input;
     input.update(dt);
@@ -521,7 +539,9 @@ class Game {
       this.hud.prompt(np && np.dist < 4.5 && !this.transitioning ? (np.portal.locked ? np.portal.lockedLabel : np.portal.label) : '');
     }
     if (this.portalCooldown > 0) this.portalCooldown -= dt;
-    this.hud.setSprint(this.player.sprinting);
+    this.hud.setSprint(false);
+    this.hud.setMana(this.player.mana, this.player.maxMana);
+    this.hud.setDash(this.player.dashCharges, this.player.maxDashes);
     if (!this.transitioning && this.portalCooldown <= 0 && !this.player.dead) {
       const p = area.checkPortals(this.player);
       if (p) this.onPortal(p);
