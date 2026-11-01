@@ -16,17 +16,15 @@ vendored in `lib/`, so the game works offline and on GitHub Pages.
 
 ## Controls
 
-| | Move | Sprint | Look | Hit | Roll | Use | Flask | Inventory | Map | Menu |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Keyboard + mouse | WASD | Shift / double-tap W | mouse | click / F | Space | E | R | I / Tab | M | Esc |
-| Touch | left joystick | RUN (toggle) | swipe right side | HIT | ROLL | USE | FLASK | ◈ | tap minimap | ☰ |
-| Gamepad | left stick | L3 (toggle) | right stick | A / RT | B | Y | LB | Back | R3 | Start |
+| | Move | Jump | Dash | Look | Hit | Block | Skills | Use | Potion | Item | Inventory | Map | Menu |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Keyboard + mouse | WASD | Space | Shift | mouse | click / F | right-click | 1-4 | E | R | G | I / Tab | M | Esc |
+| Touch | left joystick | JUMP | DASH | swipe right side | HIT | BLOCK | skill buttons | USE | FLASK | ITEM | ◈ | tap minimap | ☰ |
+| Gamepad | left stick | A | B | right stick | X / RT | LT (hold) | D-pad | Y | LB | RB | Back | R3 | Start |
 
-**Admin / debug menu:** F1, tap the HUD status line 5 times, or hold LB+RB and press Start.
+Ground slam (once unlocked): C / L3, or look straight down in the air and dash/attack. Companion orders: O / ORD. Waystone level select: L (in town).
 
-The game uses whichever input you touched last and shows matching hints. The
-touch controls only appear in touch mode. You can set look sensitivity, invert
-Y, always-day-in-village and the minimap in the menu.
+**Admin / debug menu:** F1, the ADM button (touch), tap the HUD status line 5 times, or hold LB+RB and press Start.
 
 ## The world
 
@@ -38,49 +36,17 @@ lore text lives in `data/lore.js`; notes you find are kept in the Lore Journal.
 
 ## Game rules
 
-* **Stamina**: sprinting, attacking and rolling cost stamina; the dodge roll has
-  invulnerability frames.
-* **Renown** (status) comes only from deeds: monsters slain (bosses count as
-  feats), skills learned, lifetime ashes earned and the deepest main-dungeon
-  level. It never decreases. Ranks: Nobody, Wanderer, Sellsword, Slayer,
-  Champion, Hero of the Realm, King's Blade. Higher ranks unlock shop discounts
-  and stock, keystone skills, and the castle's rooms.
-* **Main dungeon** (green portal): 5 numbered levels, each ending in a boss
-  arena. Killing the boss opens two gates: *Descend* (harder level) or
-  *Return* (to town, keeping your loot).
-* **Random dungeons** (red portal): a new layout every visit in one of six
-  biomes: the Shifting Depths (crypt corridors), and open/cave generators for the
-  Weeping Wood, Verdant Maw, Drowned Quarter, Rimewastes and Kilnworks, a 1-in-3 chance of an elder mini-boss, and a reward chest rolled
-  rarest first (1/500 Legendary, 1/50 Rare, 1/5 Special) with saved pity
-  counters (guaranteed Rare after 50 runs without one, Legendary after 300).
-* **The King's Castle**: the gate at the north end of town (needs Wanderer).
-  Guards open the great hall and throne room as your renown grows.
-* **Homes**: every house can be entered: rest in beds, search chests (refill
-  daily), read bookshelves, eat from the pot.
-
-* **The Ashen Market** (west building, walk inside): buy flasks, weapons, armour
-  and rings; sell loot for ashes.
-* **The Hall of Paths** (east building): the only place skills can be learned.
-  Skills cost skill points (one per level) plus a fee in ashes. The skill tree
-  (Iron / Ash / Shadow, 25 nodes) can be viewed from the inventory but only
-  upgraded here.
-* **Inventory** has its own button: equipment slots (weapon, head, body, hands,
-  ring), your stats, items, and a Skill Tree tab. Items marked red were found
-  this run and are lost if you die.
-* **Two portals**: the fixed *Sunken Catacombs* and the *Shifting Depths*, a new
-  random layout every visit (with a guarded chest in the deepest room).
-
-* **Town (Ashen Hollow)** is the safe hub. It has no enemies and wounds heal slowly.
-* **Portal** (north end of town) leads to **The Sunken Catacombs**. There's a
-  portal back at the dungeon entrance.
-* **World clock** only runs while you're in the dungeon. Every 5 minutes of
-  dungeon time flips the town between DAY and NIGHT. The HUD shows the dungeon
-  timer and what the town will be when you return.
-* **SAVED vs RUN**: anything you gain in the dungeon (ashes, items, gear) is
-  RUN state. Leave through the portal alive and it merges into SAVED. Die and
-  it's lost, and you wake in town. Skill progression (XP and level) is always
-  kept.
-* SAVED state, progression and the world clock are saved in `localStorage`.
+* **Movement** is Doom-style: fast running costs nothing, instant acceleration, jump with full air control and strafe-jumping, ledge mantling, fall damage only from big drops. **Dash** (2 recharging charges, i-frames, works in the air). Double jump, a 3rd dash and the ground slam are unlocked in the Storm path (or by gear). Stamina is for attacks, blocking and skills; mana for active skills.
+* **Main dungeon**: 30 levels (a new look every 5), then the endless **Abyss**. Every level ends in a guardian arena with Descend / Return gates. Story guardians at 5/10/15/20/25, **the Hollow King** (3 phases) at 30; other guardians are elites with affixes (burning, frozen, vampiric, shielded, splitting, hasted). Difficulty is **fixed per level**: the Waystone shows danger (green / yellow / red / skull) and the recommended level; XP drops off on levels far below you.
+* **Conquest**: optional hard mode per level (+150% HP/damage, more elites, traps, no shrines, kill everything). Conquered levels get a crown; the Waystone lets you start after your highest conquest. First clears give a Rare reward and renown.
+* **The Proving Pit** (purple portal, west wall): wave arena by tier, elite waves every 5, guardians every 10, a 10 s break with "Leave now", best wave saved per tier.
+* **Loot** = base × material × rarity × affixes: 20 weapon types with their own movesets (melee, bows, crossbows, staves, wands, knives, tomes, lanterns, shields), 6 armour + 5 accessory slots, 7 materials by depth, Common / Special 1/5 / Rare 1/50 / Legendary 1/500 / Mythic 1/5000 (pity: Rare 50, Legendary 300, Mythic 1000 runs), 44 affixes, gem sockets (7 gems × 5 grades), 8 lore sets, 32 named Legendaries, 13 Mythics, cursed items. Inventory sort / filter / compare / lock / salvage; a tabbed stash in town.
+* **Skill web**: 10 paths (Oathguard, Red Covenant, Bone Choir, Veiled, Long Watch, Thunderborn, Rimewatch, Cinder Choir, Hearth-Keepers, Wild Oath), 251 nodes with crossroads between neighbours, 2 keystones per path with trade-offs, 20 active skills on a 4-slot bar. Learn and respec at the Hall of Paths.
+* **Stores**: Market, Armorer, Weaponsmith (+1..+10), Alchemist (brewing), Jeweler (sockets, combining), Enchanter (reroll an affix), Runeforge (craft, salvage), Black Market, Gambler, Tailor (cosmetics), Cartographer (dungeon maps), Tavern (companions, rumours), Stash House, Menagerie (pets), and the Hearth Garden at 80% restoration. All restock per run and have buyback.
+* **Companions** (Tavern): Bram, Sister Ilse, Nix, Hedda, Father Oswin, Korr, Mirelle and the Silent One; bring one companion and one pet. They level up, take your gear, follow orders, can be revived, and have a personal quest.
+* **World Restoration** (0-100%): bosses, conquests, depth and renown milestones, quests and kills heal the world. The hub and the first levels blend from ash to healed; 100% brings the festival.
+* **Ascension** after the Hollow King: back to level 1 with your gear and skills, permanent bonus points, tougher enemies.
+* **Renown** (status) comes only from deeds and unlocks discounts, stock, keystones and the castle's rooms. Death loses the run's warm loot (and companions' run gear); the Hearth keeps everything else.
 
 ## Code layout
 
@@ -110,6 +76,14 @@ js/world/outdoorGen.js        open/cave layout generators (clearings, rivers, ca
 js/world/outdoor.js           terrain, natural instanced borders, biome features
 js/engine/nav.js              nav grid from collision + A* for enemies
 js/systems/journal.js         Lore Journal
+js/systems/itemgen.js         item generation: bases, materials, rarity, affixes, gems, sets, legendaries, mythics, curses
+js/systems/shops.js           stores, stock, restock, services
+js/systems/actives.js         active skills + skill bar
+js/systems/progression.js     recommended levels, danger, XP falloff, gear score, ascension
+js/systems/restoration.js     World Restoration
+js/entities/allies.js         companions, pets, summons
+js/entities/weaponModels.js   shared weapon models (edge-forward convention) + the bow
+js/world/pit.js               the Proving Pit
 js/systems/ending.js          ending stub (Hearth choice)
 data/lore.js                  all lore text
 js/world/castle.js            the King's castle (rooms, guards gated by renown)
@@ -127,7 +101,7 @@ js/systems/stats.js           derived stats (base + gear + skills)
 js/systems/loot.js            drops and pickups
 js/systems/renown.js          renown score, ranks, greetings
 js/systems/rewards.js         reward-chest rarity roll + pity
-js/systems/state.js           SAVED / RUN state + localStorage
+js/systems/state.js           SAVED / RUN state, stash, save versioning + migration chain (v1 -> v4)
 js/systems/clock.js           world clock + day/night phase
 js/systems/skills.js          skill tree (iron / ash / shadow), costs, requirements
 js/systems/settings.js        user settings
