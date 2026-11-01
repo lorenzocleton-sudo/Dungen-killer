@@ -5,11 +5,24 @@ import * as THREE from '../../lib/three.module.min.js';
 import { litMaterial, basicMaterial } from '../engine/materials.js';
 import { buildWeapon } from '../entities/weaponModels.js';
 
-const POSES = {
+const SWING = {
   rest: { p: [0.36, -0.42, -0.66], r: [-0.6, 0.25, -0.3] },
   windup: { p: [0.5, -0.18, -0.55], r: [-0.35, -0.55, -1.25] },
   end: { p: [-0.4, -0.42, -0.58], r: [0.35, 0.9, 1.45] },
 };
+// one pose set per moveset (rest -> windup -> end)
+const MOVESETS = {
+  swing: SWING,
+  heavy: { rest: { p: [0.38, -0.46, -0.7], r: [-0.4, 0.2, -0.2] }, windup: { p: [0.25, 0.05, -0.45], r: [0.9, 0.2, -0.25] }, end: { p: [0.05, -0.62, -0.75], r: [-1.5, 0.1, -0.1] } },
+  thrust: { rest: { p: [0.3, -0.4, -0.6], r: [-1.45, 0.05, 0] }, windup: { p: [0.32, -0.38, -0.38], r: [-1.5, 0.05, 0] }, end: { p: [0.12, -0.3, -1.05], r: [-1.55, 0, 0] } },
+  cast: { rest: { p: [0.34, -0.44, -0.62], r: [-0.35, 0.1, -0.15] }, windup: { p: [0.3, -0.3, -0.5], r: [-0.1, 0.1, -0.1] }, end: { p: [0.22, -0.26, -0.82], r: [-0.9, 0, 0] } },
+  throw: { rest: { p: [0.36, -0.42, -0.6], r: [-0.8, 0.2, -0.3] }, windup: { p: [0.45, -0.1, -0.35], r: [0.6, 0.2, -0.3] }, end: { p: [0.2, -0.35, -0.85], r: [-1.3, 0, 0] } },
+  bash: { rest: { p: [0.1, -0.45, -0.55], r: [-0.15, 0.4, 0] }, windup: { p: [0.15, -0.4, -0.4], r: [-0.1, 0.5, 0] }, end: { p: [0.0, -0.36, -0.85], r: [-0.05, 0.2, 0] } },
+  // the bow stands upright in front of you (left hand), the string draws back
+  bow: { rest: { p: [-0.12, -0.32, -0.62], r: [0, -0.15, 0.05] }, windup: { p: [-0.08, -0.24, -0.66], r: [0, -0.05, 0] }, end: { p: [-0.08, -0.24, -0.7], r: [0, -0.05, 0] } },
+};
+const BLOCK = { p: [0.05, -0.32, -0.5], r: [-0.2, 0.9, 1.35] };
+let POSES = SWING;
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t) => t * t * (3 - 2 * t);
 const BASE_DURATION = 0.48;
@@ -97,11 +110,19 @@ export class Weapon {
     this.bob = 0;
   }
 
-  setModel(model) {
-    if (this.model === model) return;
-    this.model = model;
+  /** opts: { tint, glow, pose (moveset), dye } */
+  setModel(model, opts = {}) {
+    const key = `${model}|${opts.tint}|${opts.glow}|${opts.dye}`;
+    this.pose = opts.pose || 'swing';
+    if (this.modelKey === key) return;
+    this.modelKey = key; this.model = model;
     if (this.sword) { this.root.remove(this.sword); this.sword.traverse((o) => o.geometry && o.geometry.dispose()); }
-    this.sword = buildWeaponModel(model);
+    this.sword = buildWeaponModel(model, opts);
+    if (model === 'bow') {
+      // bow is held upright by the left hand: undo the edge-forward mount
+      const w = this.sword.userData.weapon; w.rotation.set(0, Math.PI / 2, 0);
+      this.bow = w.userData.bow; w.position.y = -0.1;
+    } else this.bow = null;
     this.root.add(this.sword);
   }
 
@@ -128,6 +149,7 @@ export class Weapon {
   update(dt, player) {
     if (this.cooldown > 0) this.cooldown -= dt;
     let pose;
+    POSES = MOVESETS[this.pose] || SWING;
     const D = BASE_DURATION / this.speed;
     if (this.t >= 0) {
       this.t += dt * this.speed;
@@ -142,9 +164,15 @@ export class Weapon {
       this.slashUniforms.uFade.value = t < 0.11 ? 0 : Math.max(0, 1 - Math.max(0, t - 0.27) / 0.12);
       if (t >= BASE_DURATION) { this.t = -1; this.cooldown = 0.08 / this.speed; }
     } else {
-      pose = POSES.rest;
+      pose = this.blocking ? BLOCK : POSES.rest;
       this.slashUniforms.uFade.value = 0;
     }
+    if (this.bow) {
+      const t = this.t;
+      this.bow.setDraw(t >= 0 ? (t < 0.2 ? t / 0.2 : t < 0.22 ? 1 : 0) : 0);
+      this.bow.arrow.visible = t < 0 || t < 0.21;
+    }
+    if (this.pose !== 'swing' && this.pose !== 'heavy') this.slashUniforms.uFade.value = 0;
     void D;
     this.bob += dt * (player.moving ? (player.sprinting ? 14 : 9) : 1.6);
     const amp = player.moving ? (player.sprinting ? 0.03 : 0.018) : 0.006;

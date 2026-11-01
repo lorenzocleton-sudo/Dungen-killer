@@ -4,10 +4,12 @@
 //   stats (gear): maxHp, defense (% less damage taken), damagePct, attackSpeedPct,
 //                 critChance, speedPct, reach
 //   icon: [glyph, colour] used by the inventory UI
+import { SLOTS as GEN_SLOTS, SLOT_NAMES as GEN_SLOT_NAMES, RARITY as GEN_RARITY, genDef, GEM_TYPES, GEM_GRADES, gemId, gemInfo } from './itemgen.js';
+
 export const SELL_RATE = 0.5;
 
-export const SLOTS = ['weapon', 'head', 'chest', 'hands', 'ring'];
-export const SLOT_NAMES = { weapon: 'Weapon', head: 'Head', chest: 'Body', hands: 'Hands', ring: 'Ring' };
+export const SLOTS = GEN_SLOTS;
+export const SLOT_NAMES = GEN_SLOT_NAMES;
 
 export const ITEMS = {
   // ---- consumables
@@ -45,14 +47,9 @@ export const ITEMS = {
 // special  : a little better than shop gear, never overpowered
 // rare     : good stats + one special effect
 // legendary: unique, build-defining effect
-export const RARITY = {
-  normal: { name: 'Common', color: '#8a7e68' },
-  special: { name: 'Special', color: '#5a9ad8' },
-  rare: { name: 'Rare', color: '#b468e0' },
-  legendary: { name: 'Legendary', color: '#ff8a20' },
-};
+export const RARITY = GEN_RARITY;
 
-const R = (rarity, id, def) => { ITEMS[id] = { ...def, rarity, kind: 'gear' }; return id; };
+const R = (rarity, id, def) => { ITEMS[id] = { ...def, slot: def.slot === 'ring' ? 'ring' : def.slot, rarity, kind: 'gear' }; return id; };
 const S = 'special', RR = 'rare', L = 'legendary';
 export const RARITY_ITEMS = {
   special: [
@@ -86,6 +83,77 @@ export const RARITY_ITEMS = {
   ],
 };
 
+// ------------------------------------------------------------ consumables, materials, gems, keys, cosmetics
+const POT = ['Minor', 'Lesser', '', 'Greater', 'Supreme'];
+for (let i = 0; i < 5; i++) {
+  ITEMS['hp_potion_' + i] = { name: `${POT[i]} Healing Potion`.trim(), kind: 'consumable', value: [20, 45, 90, 180, 360][i], heal: [40, 80, 150, 280, 500][i], potion: 'hp', grade: i, icon: ['\u2697', '#e04040'], desc: `Restores ${[40, 80, 150, 280, 500][i]} HP over a moment.` };
+  ITEMS['st_potion_' + i] = { name: `${POT[i]} Stamina Draught`.trim(), kind: 'consumable', value: [15, 35, 70, 140, 280][i], stamina: [50, 100, 200, 300, 500][i], potion: 'st', grade: i, icon: ['\u2697', '#60c060'], desc: 'Restores stamina and speeds its return for a while.' };
+  ITEMS['mp_potion_' + i] = { name: `${POT[i]} Mana Tonic`.trim(), kind: 'consumable', value: [15, 35, 70, 140, 280][i], mana: [40, 80, 150, 250, 400][i], potion: 'mp', grade: i, icon: ['\u2697', '#5070e0'], desc: 'Restores mana.' };
+}
+Object.assign(ITEMS, {
+  bomb: { name: 'Black Powder Bomb', kind: 'consumable', value: 40, throwable: 'bomb', icon: ['\u25CF', '#c0a080'], desc: 'Throw (G): explodes for heavy damage in a 4 m radius.' },
+  fire_flask: { name: 'Fire Flask', kind: 'consumable', value: 45, throwable: 'fire', icon: ['\u2668', '#ff7030'], desc: 'Throw (G): bursts into a burning pool.' },
+  smoke_bomb: { name: 'Smoke Bomb', kind: 'consumable', value: 40, throwable: 'smoke', icon: ['\u2601', '#a0a0a0'], desc: 'Use: enemies lose sight of you for 4 s.' },
+  antidote: { name: 'Antidote', kind: 'consumable', value: 25, cure: true, icon: ['\u271A', '#90e060'], desc: 'Cures poison and wards it off for 30 s.' },
+  oil_fire: { name: 'Fire Oil', kind: 'consumable', value: 50, oil: 'fire', icon: ['\u25B2', '#ff8040'], desc: 'Coat your weapon: hits burn for 60 s.' },
+  oil_frost: { name: 'Frost Oil', kind: 'consumable', value: 50, oil: 'frost', icon: ['\u25B2', '#80c0ff'], desc: 'Coat your weapon: hits chill for 60 s.' },
+  oil_poison: { name: 'Venom Oil', kind: 'consumable', value: 50, oil: 'poison', icon: ['\u25B2', '#90d040'], desc: 'Coat your weapon: hits poison for 60 s.' },
+  return_scroll: { name: 'Scroll of Return', kind: 'consumable', value: 400, returnHome: true, icon: ['\u2709', '#f0d080'], desc: 'Rare. Read it to walk home through the ash, keeping everything you carry.' },
+  vault_key: { name: 'Vault Key', kind: 'key', value: 30, icon: ['\u26BF', '#d8b040'], desc: 'Opens a locked vault on this level. It crumbles if you leave.' },
+  // crafting materials (per tier) and essences
+  hide: { name: 'Beast Hide', kind: 'material', value: 8, icon: ['\u25A7', '#a07850'], desc: 'Tough, tanned by nothing.' },
+  ore_iron: { name: 'Iron Ore', kind: 'material', value: 6, icon: ['\u25C6', '#9a9aa0'], desc: 'Crafting: tier 1.' },
+  ore_steel: { name: 'Steel Ingot', kind: 'material', value: 12, icon: ['\u25C6', '#c8ccd4'], desc: 'Crafting: tier 2.' },
+  ore_blackiron: { name: 'Blackiron Ingot', kind: 'material', value: 22, icon: ['\u25C6', '#5a5a64'], desc: 'Crafting: tier 3.' },
+  ore_sunsteel: { name: 'Sunsteel Ingot', kind: 'material', value: 40, icon: ['\u25C6', '#e8c060'], desc: 'Crafting: tier 4.' },
+  ore_voidglass: { name: 'Voidglass Shard', kind: 'material', value: 70, icon: ['\u25C6', '#8a5ad0'], desc: 'Crafting: tier 5.' },
+  ore_hearth: { name: 'Hearth-Iron', kind: 'material', value: 120, icon: ['\u25C6', '#ff8a40'], desc: 'Crafting: tier 6. Still warm.' },
+  ess_fire: { name: 'Fire Essence', kind: 'material', value: 18, icon: ['\u2737', '#ff7030'], desc: 'Elemental essence.' },
+  ess_frost: { name: 'Frost Essence', kind: 'material', value: 18, icon: ['\u2737', '#80c0ff'], desc: 'Elemental essence.' },
+  ess_storm: { name: 'Storm Essence', kind: 'material', value: 18, icon: ['\u2737', '#e0e080'], desc: 'Elemental essence.' },
+  ess_shadow: { name: 'Shadow Essence', kind: 'material', value: 18, icon: ['\u2737', '#8060a0'], desc: 'Elemental essence.' },
+  ess_life: { name: 'Life Essence', kind: 'material', value: 18, icon: ['\u2737', '#60e080'], desc: 'Elemental essence.' },
+  ess_void: { name: 'Void Essence', kind: 'material', value: 80, icon: ['\u2737', '#c040ff'], desc: 'From legendary things, broken.' },
+});
+for (const t of Object.keys(GEM_TYPES)) for (let gr = 0; gr < 5; gr++) {
+  const info = gemInfo(gemId(t, gr));
+  ITEMS[gemId(t, gr)] = { name: info.name, kind: 'gem', value: [30, 90, 260, 700, 1800][gr], icon: ['\u25C7', GEM_TYPES[t].color], gem: true, desc: `Socket into gear. ${Object.entries(info.stats).map(([k, v]) => `+${v} ${k}`).join(', ')}. Combine 3 at the Jeweler for the next grade.` };
+}
+// cosmetics: dyes (your sleeves + slash), cloak patterns, portal colours
+export const COSMETICS = {
+  dye_crimson: { name: 'Crimson Dye', type: 'dye', color: 0x9a2a2a }, dye_ash: { name: 'Ash-Grey Dye', type: 'dye', color: 0x6a6a6a },
+  dye_royal: { name: 'Royal Blue Dye', type: 'dye', color: 0x2a3a8a }, dye_gold: { name: 'Gilded Dye', type: 'dye', color: 0xb08a30 },
+  dye_bone: { name: 'Bone-White Dye', type: 'dye', color: 0xd8d0c0 }, dye_moss: { name: 'Moss Dye', type: 'dye', color: 0x4a6a3a },
+  cloak_ember: { name: 'Pattern: Embers', type: 'cloak', color: 0xd06020 }, cloak_raven: { name: 'Pattern: Raven', type: 'cloak', color: 0x202028 },
+  cloak_lion: { name: 'Pattern: Lion of Vael', type: 'cloak', color: 0xc8a040 }, cloak_tide: { name: 'Pattern: Tide', type: 'cloak', color: 0x308080 },
+  portal_gold: { name: 'Portal Colour: Gold', type: 'portal', color: 'gold' }, portal_violet: { name: 'Portal Colour: Violet', type: 'portal', color: 'purple' },
+  portal_ember: { name: 'Portal Colour: Ember', type: 'portal', color: 'red' },
+  festival_lantern: { name: 'Festival Lantern (Hearth healed)', type: 'cloak', color: 0xffd080 },
+};
+for (const [id, c] of Object.entries(COSMETICS)) ITEMS[id] = { name: c.name, kind: 'cosmetic', value: 150, icon: ['\u2740', typeof c.color === 'number' ? '#' + c.color.toString(16).padStart(6, '0') : '#e0c070'], cosmetic: c, desc: 'Cosmetic. Apply it at the Tailor.' };
+export { GEM_TYPES, GEM_GRADES, gemId, gemInfo };
+
+// legacy fixed gear -> weapon type + estimated item level
+const LEGACY_WTYPE = { sword: 'sword', longsword: 'sword', ashblade: 'sword', axe: 'axe' };
+for (const [id, d] of Object.entries(ITEMS)) {
+  if (d.kind !== 'gear') continue;
+  if (d.slot === 'weapon') d.wtype = LEGACY_WTYPE[d.model] || 'sword';
+  d.ilvl = d.ilvl || Math.max(1, Math.round((d.value || 40) / 70));
+}
+
+const genCache = new WeakMap();
+/** Definition of an inventory entry (static item or generated gear). */
+export function defOf(item) {
+  if (!item) return null;
+  if (item.id !== 'gen') return ITEMS[item.id] || null;
+  if (!item.g) return null;
+  let d = genCache.get(item.g);
+  if (!d) { d = genDef(item.g); genCache.set(item.g, d); }
+  return d;
+}
+/** Call after changing a generated item (upgrade, gem, enchant, lock). */
+export function touchItem(item) { if (item && item.g) genCache.delete(item.g); }
+
 /** What the Ashen Market sells. */
 export const SHOP_STOCK = [
   'ashen_flask', 'leather_hood', 'gambeson', 'rusted_ring', 'hunter_gloves', 'longsword',
@@ -111,7 +179,11 @@ export const DROP_TABLES = {
 };
 
 export function itemDef(id) { return ITEMS[id]; }
-export function sellPrice(id) { return Math.max(1, Math.floor((ITEMS[id]?.value || 0) * SELL_RATE)); }
+/** Sell price of an inventory entry (or a static item id). */
+export function sellPrice(x) {
+  const d = typeof x === 'string' ? ITEMS[x] : defOf(x);
+  return Math.max(1, Math.floor(((d && d.value) || 0) * SELL_RATE));
+}
 
 export function statLine(stats = {}) {
   const lbl = { maxHp: 'HP', defense: '% defense', damagePct: '% damage', attackSpeedPct: '% attack speed', critChance: '% crit', speedPct: '% move speed', reach: 'm reach',

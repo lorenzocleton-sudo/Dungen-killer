@@ -570,6 +570,7 @@ export class Enemy {
   }
 
   _canSee(player, collision) {
+    if (player.hiddenT > 0) return false;
     return collision.lineOfSight(this.pos.x, this.pos.y + this.height * 0.85, this.pos.z, player.pos.x, player.eyeY, player.pos.z);
   }
 

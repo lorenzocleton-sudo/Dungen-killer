@@ -90,12 +90,14 @@ export class EnemyManager {
   update(dt) {
     const g = this.game;
     Enemy.pathBudget = 4;
+    if (g.enemySlowT > 0) { g.enemySlowT -= dt; dt *= 0.45; }   // The Stilled Hour
     const ctx = { player: g.player, collision: g.area.collision, enemies: this.list, game: g };
     for (const e of this.list) {
       // far-away enemies sleep (and hide inside the fog) to save CPU/GPU on tablets
       const d2 = e.pos.distanceToSquared(g.player.pos);
       e.group.visible = d2 < 900 || e.def.boss;
       if (!e.dead && e.state === 'idle' && d2 > 900) continue;
+      ctx.player = g.allies ? g.allies.targetFor(e, g.player) : g.player;
       e.update(dt, ctx);
     }
     for (let i = this.list.length - 1; i >= 0; i--) {

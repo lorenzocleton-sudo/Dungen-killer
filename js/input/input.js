@@ -198,6 +198,7 @@ export class Input {
       el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('pressed'); if (action === 'block') this.touchBlock = false; });
       el.addEventListener('mousedown', (e) => { e.stopPropagation(); this.trigger(action); });
       if (action === 'block') el.addEventListener('touchstart', () => { this.touchBlock = true; }, { passive: true });
+      if (action === 'jump') { el.addEventListener('touchstart', () => { this.touchJump = true; }, { passive: true }); el.addEventListener('touchend', () => { this.touchJump = false; }); }
     };
     bindBtn('btn-hit', 'hit');
     bindBtn('btn-menu', 'menu');
@@ -260,6 +261,7 @@ export class Input {
     if (edge(13)) { this.trigger('nav_down'); this.trigger('skill3'); }
     if (edge(14)) { this.trigger('nav_left'); this.trigger('skill4'); }
     this.padBlock = b(6);
+    this.padJump = b(0);
     // stick-as-dpad for menus
     const sy = pad.axes[1] || 0, sx = pad.axes[0] || 0;
     const st = Math.abs(sy) > 0.6 ? (sy > 0 ? 'd' : 'u') : Math.abs(sx) > 0.6 ? (sx > 0 ? 'r' : 'l') : '';
@@ -296,6 +298,7 @@ export class Input {
 
     // block is held (right mouse / LT / touch BLOCK)
     this.block = !!(this.mouseBlock || this.padBlock || this.touchBlock);
+    this.jumpHeld = !!(this.keys.has('Space') || this.padJump || this.touchJump);
     this.sprint = false;
 
     if (!this.enabled) { this.move.x = this.move.y = 0; this.look.x = this.look.y = 0; this.block = false; }

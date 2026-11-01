@@ -20,7 +20,7 @@ import { OutdoorDungeon } from './world/outdoor.js';
 import { BIOMES } from './world/biomes.js';
 import { ProvingPit } from './world/pit.js';
 import { xpMul } from './systems/progression.js';
-import { ITEMS } from './systems/items.js';
+import { ITEMS, defOf } from './systems/items.js';
 
 /** The Shifting Depths: a crypt (cell builder) or an open/cave biome. */
 function createDepths(g) {
@@ -41,6 +41,8 @@ import { Journal } from './systems/journal.js';
 import { AREA_LORE, BOSS_LORE, DEATH_LINES, TIPS, pick } from '../data/lore.js';
 import { ENEMY_TYPES } from './entities/enemyTypes.js';
 import { EnemyManager } from './entities/enemyManager.js';
+import { AllyManager } from './entities/allies.js';
+import { ShopSystem } from './systems/shops.js';
 import { CombatSystem } from './systems/combat.js';
 import { LootSystem } from './systems/loot.js';
 
@@ -92,9 +94,11 @@ class Game {
     this.rewards = new Rewards(this);
     this.minimap = new Minimap(this);
     this.biomeIds = BIOME_IDS;
-    this.defOf = (it) => ITEMS[it.id];
+    this.defOf = defOf;
     this.dungeonLevel = 1;
-    this.systems = [this.enemies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
+    this.allies = new AllyManager(this);
+    this.shops = new ShopSystem(this);
+    this.systems = [this.enemies, this.allies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
     this.admin = new AdminMenu(this);
     for (const id of ['menu', 'admin', 'panel', 'title']) fastTap(document.getElementById(id));
     this.renown = new Renown(this);
@@ -118,8 +122,10 @@ class Game {
       if (BOSS_LORE[enemy.type]) setTimeout(() => this.hud.speak(BOSS_LORE[enemy.type].death, 6), 900);
       this.state.world.bosses[enemy.type] = (this.state.world.bosses[enemy.type] || 0) + 1;
       this.loot.roll('boss', enemy.pos, 4);
-      // bosses always drop a Special, sometimes a Rare
-      this.loot.spawn(this.rewards.randomItem(Math.random() < 0.3 ? 'rare' : 'special'), enemy.pos, 5);
+      // bosses always drop a Special, often a Rare, sometimes better
+      const r = Math.random(), rar = r < 0.004 ? 'mythic' : r < 0.04 ? 'legendary' : r < 0.4 ? 'rare' : 'special';
+      this.loot.spawnGen(this.rewards.randomItem(rar, enemy.level), enemy.pos, 5);
+      this.loot.spawnGen(this.rewards.randomItem('special', enemy.level), enemy.pos, 6);
       if (this.area.onBossDefeated) this.area.onBossDefeated(enemy);
       if (this.restoration && !enemy.tags.summoned) this.restoration.add(enemy.type === 'hollow_king' ? 12 : 5, 'boss');
       this.state.save();
@@ -301,7 +307,7 @@ class Game {
     if (first) {
       // first clear: a guaranteed Rare chest, better loot, renown
       const p = this.player.pos.clone();
-      this.loot.spawn(this.rewards.randomItem('rare', a.level + 2), p, 0);
+      this.loot.spawnGen(this.rewards.randomItem('rare', a.level + 2), p, 0);
       this.loot.roll('chest', p, 4);
       if (this.renown) { this.renown.data.bonus += 40 + a.level * 6; this.renown.changed(); }
       if (this.restoration) this.restoration.add(1.5, 'conquest');

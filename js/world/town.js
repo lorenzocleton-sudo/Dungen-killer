@@ -9,7 +9,7 @@ import {
   box, mesh, wallTorch, postTorch, portal, house, barrel, crate, cart, well,
   gravestone, deadTree, npc, groundAO, fire, hollowHouse, interactable, hero, bonfire, anvil, trainingDummy,
 } from './props.js';
-import { furnishHome } from './homes.js';
+import { furnishHome, furnishStore } from './homes.js';
 import { NPC_LINES } from '../../data/lore.js';
 
 const HALF = 34;     // wall centre line
@@ -144,7 +144,7 @@ export class Town extends Area {
       },
     });
     this.interiors.push(market);
-    interactable(A, new THREE.Vector3(-15.8, 0, -12), 2.4, 'Trade at the Ashen Market', () => this.game.openScreen('shop'));
+    interactable(A, new THREE.Vector3(-15.8, 0, -12), 2.4, 'Trade at the Ashen Market', () => this.game.openScreen('shop:market'));
 
     // ---------------------------------------------------------- the Hall of Paths (skill trainer, enterable)
     const hall = hollowHouse(A, {
@@ -178,9 +178,12 @@ export class Town extends Area {
       { x: -28.5, z: -8, w: 6, d: 7, door: 'e', h: 3.8, windows: [['e', 2]] },
       { x: 28.5, z: -13, w: 6, d: 7, door: 'w', h: 3.8, chimney: false, windows: [] },
     ];
-    // every house can be entered (step 11): furnished interiors
+    // the stores of Emberwick live in most of the houses; two stay homes
+    const STORE_OF = ['alchemist', 'jeweler', 'armorer', 'tavern', 'enchanter', 'tailor', null, 'stash', 'weaponsmith', null];
+    const SIGN = { alchemist: 'ALCHEMIST', jeweler: 'JEWELER', armorer: 'ARMORER', tavern: 'EMBER & CROW', enchanter: 'ENCHANTER', tailor: 'TAILOR', stash: 'STASH HOUSE', weaponsmith: 'WEAPONSMITH' };
     H.forEach((h, i) => {
-      const inner = hollowHouse(A, { ...h, h: Math.max(3.8, h.h || 4), furnish: (a, r) => furnishHome(a, r, i) });
+      const shop = STORE_OF[i];
+      const inner = hollowHouse(A, { ...h, h: Math.max(3.8, h.h || 4), sign: shop ? SIGN[shop] : undefined, furnish: (a, r) => (shop ? furnishStore(a, r, shop) : furnishHome(a, r, i)) });
       this.interiors.push(inner);
     });
 
@@ -240,6 +243,22 @@ export class Town extends Area {
     for (const [x, z] of [[-11.5, -21], [-12, -24]]) box(A, 'beam', x, 1.3, z, 0.18, 2.6, 0.18, { tag: 'prop' });
     box(A, 'roof', -11.8, 2.65, -22.5, 0.6, 0.08, 4, { collide: false, shade: null });
     barrel(A, -12.5, -19.5); crate(A, -6, -20, 0, 0.8, 0.3);
+
+    interactable(A, new THREE.Vector3(-7.6, 0, -22.2), 2.4, 'The Runeforge (craft & salvage)', () => this.game.openScreen('shop:runeforge'));
+    // the Black Market: a hooded figure in the north-west alley
+    npc(A, { id: 'blackmarket', name: 'A Voice in the Alley', talk: false, x: -29.5, z: -18.5, yaw: Math.PI / 2, cloth: 'clothRed' });
+    interactable(A, new THREE.Vector3(-28.5, 0, -18.5), 2.4, 'The Black Market', () => this.game.openScreen('shop:blackmarket'));
+    // the Gambler at the square stall, the Cartographer by the portals
+    npc(A, { id: 'gambler', name: 'Lucky Tam', talk: false, x: 5.5, z: -6.1, yaw: Math.PI, cloth: 'clothBrown' });
+    interactable(A, new THREE.Vector3(5.5, 0, -3.3), 2.6, 'The Gambler (unidentified gear)', () => this.game.openScreen('shop:gambler'));
+    box(A, 'woodDark', -14.5, 0.45, -25.5, 2.2, 0.9, 1.0, { tex: 1 });
+    box(A, 'plaster', -14.5, 0.93, -25.5, 1.9, 0.04, 0.8, { collide: false, shade: null });
+    npc(A, { id: 'cartographer', name: 'Ines the Cartographer', talk: false, x: -14.5, z: -26.6, yaw: 0, cloth: 'cloth' });
+    interactable(A, new THREE.Vector3(-14.5, 0, -24.3), 2.4, 'The Cartographer (dungeon maps)', () => this.game.openScreen('shop:cartographer'));
+    interactable(A, new THREE.Vector3(19.8, 0, 13.4), 2.2, 'The Menagerie (pets)', () => this.game.openScreen('shop:menagerie'));
+    // the Hearth Garden opens when the world is 80% healed
+    this.gardenIt = interactable(A, new THREE.Vector3(-9, 0, 19), 2.4, 'The Hearth Garden (gardener)', () => this.game.openScreen('shop:gardener'));
+    this.gardenIt.enabled = false;
 
     // training ground beside the Hall
     for (const [x, z] of [[9.5, -20], [12.5, -21], [15.5, -20]]) trainingDummy(A, x, z, rnd());

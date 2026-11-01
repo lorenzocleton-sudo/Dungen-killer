@@ -134,6 +134,23 @@ export class Player {
   damage(amount, sourcePos, source) {
     if (this.dead || this.invuln > 0 || this.god) return 0;
     if (this.stats) amount = Math.max(1, Math.round(amount * (1 - this.stats.defense / 100) * (1 + (this.stats.dmgTakenPct || 0) / 100)));
+    // blocking: frontal hits are reduced, stamina pays for it (empty stamina = guard break)
+    if (this.blocking && sourcePos && source !== 'fall' && source !== 'trap') {
+      const ang = Math.atan2(sourcePos.x - this.pos.x, sourcePos.z - this.pos.z);
+      let d = ang - Math.atan2(this.forward.x, this.forward.z); d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) < 1.3) {
+        const st = this.stats || {};
+        const red = Math.min(0.92, (st.shieldBlock ? 0.85 : 0.6) + (st.blockPct || 0) / 100);
+        const cost = amount * 0.5;
+        if (this.stamina >= cost * 0.3) {
+          this.stamina = Math.max(0, this.stamina - cost); this.staminaDelay = 0.6;
+          amount = Math.max(0, Math.round(amount * (1 - red)));
+          events.emit('playerBlocked', { source, sourcePos });
+          if (this.stamina <= 0) { this.exhausted = true; this.blocking = false; events.emit('guardBreak', {}); }
+          if (!amount) return 0;
+        }
+      }
+    }
     if (this.absorb > 0) { const a = Math.min(this.absorb, amount); this.absorb -= a; amount -= a; if (amount <= 0) return 0; }
     this.hp = Math.max(0, this.hp - amount);
     this.shake = Math.min(1, this.shake + 0.5 + amount / 40);
@@ -146,10 +163,21 @@ export class Player {
   /** Damage over time on the player (burning, poison). */
   addDot(dps, duration, kind = 'burn') {
     if (kind === 'poison' && this.poisonImmune > 0) return;
+    const st = this.stats || {};
+    const res = kind === 'burn' ? st.resFire : kind === 'poison' ? st.resPoison : 0;
+    if (res >= 100) return;
+    dps *= 1 - (res || 0) / 100;
     this.dot = { dps: Math.max(this.dot && this.dot.t > 0 ? this.dot.dps : 0, dps), t: Math.max(this.dot ? this.dot.t : 0, duration), tick: 0.5, kind };
   }
 
-  heal(amount) { if (this.noHeal) return; this.hp = Math.min(this.maxHp, this.hp + amount); }
+  heal(amount) {
+    if (this.noHeal) return;
+    const st = this.stats || {};
+    amount *= 1 + (st.healPct || 0) / 100;
+    const over = this.hp + amount - this.maxHp;
+    if (over > 0 && st.overhealShield) this.absorb = Math.min(this.maxHp * 0.3, (this.absorb || 0) + over);
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+  }
 
   /** Is there room for the player's body standing at (x, y, z)? */
   _roomAt(world, x, z, y) {
@@ -232,7 +260,7 @@ export class Player {
     // ---------------------------------------------------------- horizontal movement
     const speed = P.speed * this.speedMul * (1 + (st.speedPct || 0) / 100);
     const slow = (this.slowT > 0 ? 0.55 : 1) * (this.terrainMul || 1) * (this.blocking ? 0.55 : 1);
-    if (this.slowT > 0) this.slowT -= dt;
+    if (this.slowT > 0) this.slowT -= dt * (1 + ((st.resFrost || 0) / 40));
     const wx = (mx * cos - my * sin), wz = (-mx * sin - my * cos);
     const wl = Math.hypot(wx, wz);
     const wishSpeed = speed * slow * Math.min(1, wl);
@@ -291,6 +319,7 @@ export class Player {
       this.grounded = false;
       if (this.coyote > 0) this.coyote -= dt;
       this.vy -= P.gravity * dt * (this.vy < 0 ? 1.15 : 1);
+      if (this.vy < -2.2 && st.glide && input.jumpHeld && !this.slamming) this.vy = -2.2;   // Wings of Ash
       this.pos.y += this.vy * dt;
       this.peakY = Math.max(this.peakY, this.pos.y);
       if (this.pos.y <= g) { this.pos.y = g; this._land(false); }

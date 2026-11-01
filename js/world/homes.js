@@ -93,3 +93,30 @@ export function furnishHome(area, inner, idx) {
     npc(area, { ...f, x: p.x, z: p.z, yaw: yaw + Math.PI });
   }
 }
+
+const STORE_NPC = {
+  alchemist: { name: 'Old Marrow', cloth: 'clothBrown', variant: 'hunched' }, jeweler: { name: 'Sabine the Jeweler', cloth: 'clothRed' },
+  armorer: { name: 'Gerda the Armorer', cloth: 'clothBrown', scale: 1.1 }, tavern: { name: 'Barkeep Hollis', cloth: 'cloth' },
+  enchanter: { name: 'Vesper', cloth: 'cloth', variant: 'staff' }, tailor: { name: 'Wren\u2019s Mother', cloth: 'clothRed' },
+  stash: { name: 'Keeper of Keys', cloth: 'cloth', variant: 'hunched' }, weaponsmith: { name: 'Bryn the Weaponsmith', cloth: 'clothBrown', scale: 1.1 },
+};
+
+/** A house turned into a store: counter, shelves, a light, the shopkeeper. */
+export function furnishStore(area, inner, shop) {
+  const fx = -inner.nx, fz = -inner.nz, rx = -fz, rz = fx;
+  const cx = inner.x, cz = inner.z;
+  const depth = Math.abs(fx) ? (inner.x1 - inner.x0) : (inner.z1 - inner.z0);
+  const back = depth / 2 - 1.2;
+  const P = (f, r) => [cx + fx * f + rx * r, cz + fz * f + rz * r];
+  const [kx, kz] = P(back - 1.4, 0);
+  box(area, 'woodDark', kx, 0.5, kz, Math.abs(fx) ? 0.8 : 3.2, 1.0, Math.abs(fx) ? 3.2 : 0.8, { tex: 1 });
+  for (const s2 of [-1.4, 1.4]) { const [sx, sz] = P(back + 0.5, s2); box(area, 'woodDark', sx, 1.2, sz, Math.abs(fx) ? 0.5 : 1.2, 2.4, Math.abs(fx) ? 1.2 : 0.5, { tex: 1 }); }
+  const [lx, lz] = P(0, 0);
+  fire(area, lx, 3.2, lz, { size: 0.25, intensity: 5, range: 8, embers: 0 });
+  const [nx2, nz2] = P(back - 0.3, 0);
+  const N = STORE_NPC[shop] || { name: 'Shopkeeper' };
+  npc(area, { id: shop, name: N.name, talk: false, x: nx2, z: nz2, yaw: Math.atan2(-fx, -fz), cloth: N.cloth, variant: N.variant, scale: N.scale });
+  const [ix, iz] = P(back - 2.4, 0);
+  interactable(area, new THREE.Vector3(ix, 0, iz), 2.4, `Speak with ${N.name}`, () => area.game.openScreen('shop:' + shop));
+  if (shop === 'tavern') for (const r of [-1.6, 1.6]) { const [tx, tz] = P(-0.5, r); box(area, 'woodDark', tx, 0.45, tz, 1.2, 0.9, 1.2, { tex: 1 }); }
+}
