@@ -25,17 +25,18 @@ export class LootSystem {
       if (Math.random() < gearChance * (1 + this.dropPct() / 100)) this.spawnGen(generateItem({ ilvl: lv, rarity: rollRarity(enemy.elite ? 4 : 1) }), enemy.pos, 1);
       if (enemy.def.flee) for (let i = 0; i < 3; i++) this.spawnGen(generateItem({ ilvl: lv + 2, rarity: rollRarity(10) }), enemy.pos, i + 2);
       if (enemy.elite) this.roll('chest', enemy.pos, 2);
+      if (enemy.tags && enemy.tags.key) this.spawn('vault_key', enemy.pos, 9);
     });
     events.on('areaChanged', () => this.clear());
   }
 
-  dropPct() { return (this.game.player.stats && this.game.player.stats.dropPct) || 0; }
+  dropPct() { const m = this.game.area && this.game.area.mapMod; return ((this.game.player.stats && this.game.player.stats.dropPct) || 0) + ((m && m.loot) || 0); }
 
   /** Item level of the current area. */
   areaIlvl() {
     if (this.ilvlOverride) return this.ilvlOverride;
     const a = this.game.area;
-    if (a && a.level) return a.level;
+    if (a && a.level) return a.level + ((a.mapMod && a.mapMod.ilvl) || 0);
     if (a && a.waveLevel) return a.waveLevel;
     return Math.max(1, Math.round((this.game.state.world.deepest || 1) * 0.8));
   }

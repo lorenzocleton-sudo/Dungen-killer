@@ -392,7 +392,7 @@ export class CombatSystem {
     }
     if (s.deathDance) this.nextCrit = true;
     g.hud.feed(`${enemy.name} falls  +${ashes} ashes`);
-    g.giveXp(Math.round(d.xp * (1 + (lv - 1) * 0.25) * (lv > 1 ? xpMul(lv, g.state.progression.level) : 1) * (1 + (s.xpPct || 0) / 100)));
+    g.giveXp(Math.round(d.xp * (1 + (lv - 1) * 0.25) * (lv > 1 ? xpMul(lv, g.state.progression.level) : 1) * (1 + (s.xpPct || 0) / 100) * ((g.area.mapMod && g.area.mapMod.xp) || 1)));
     if (g.restoration && lv <= 25 && g.area.hostile) g.restoration.kill();
     events.emit('loot', { enemy, ashes });
   }

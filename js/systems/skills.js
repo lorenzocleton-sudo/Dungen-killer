@@ -8,7 +8,7 @@
 //         max, requires: [ids], anyOf (hybrids), points, fee, keystone,
 //         rank (renown rank needed), effects: { stat: perRank }, active }
 
-export const TREE_W = 2400, TREE_H = 2400;
+export const TREE_W = 2600, TREE_H = 2600;
 const CX = TREE_W / 2, CY = TREE_H / 2;
 
 export const BRANCHES = {
@@ -169,9 +169,9 @@ const ACTIVE_SLOTS = [6, 13], KEY_SLOTS = [21, 22];
 
 function place(pi, ring, lane) {
   const a = (pi / ORDER.length) * Math.PI * 2 - Math.PI / 2;
-  const r = 200 + ring * 118;
+  const r = 260 + ring * 118;
   const px = -Math.sin(a), pz = Math.cos(a);
-  const spread = 52 + ring * 12;
+  const spread = 76 + ring * 8;
   return [Math.round(CX + Math.cos(a) * r + px * lane * spread), Math.round(CY + Math.sin(a) * r + pz * lane * spread)];
 }
 
@@ -238,7 +238,7 @@ function buildWeb() {
     const nb = ORDER[(pi + 1) % ORDER.length];
     const [nm, eff] = HY[`${b}|${nb}`];
     for (const ring of [3, 6]) {
-      const a = ((pi + 0.5) / ORDER.length) * Math.PI * 2 - Math.PI / 2, r = 200 + ring * 118;
+      const a = ((pi + 0.5) / ORDER.length) * Math.PI * 2 - Math.PI / 2, r = 260 + ring * 118;
       const n = N(`hx_${b}_${ring}`, 'hybrid', 0, 0, ring === 3 ? nm : nm + ' II', `${BRANCHES[b].name} + ${BRANCHES[nb].name}: opens from either path.`, ring === 3 ? eff : Object.fromEntries(Object.entries(eff).map(([k, v]) => [k, v * 1.5])));
       n.x = Math.round(CX + Math.cos(a) * r); n.y = Math.round(CY + Math.sin(a) * r);
       n.requires = [lanes[b][`${ring}:1`], lanes[nb][`${ring}:-1`]]; n.anyOf = true; n.fee = ring * ring * 25;

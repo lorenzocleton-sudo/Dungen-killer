@@ -11,6 +11,7 @@ import {
 } from './props.js';
 import { furnishHome, furnishStore } from './homes.js';
 import { NPC_LINES } from '../../data/lore.js';
+import { STAGES } from '../systems/restoration.js';
 
 const HALF = 34;     // wall centre line
 const WALL_H = 6.5;
@@ -32,6 +33,15 @@ export const PHASES = {
     torch: 1.0, lantern: 4.2, window: 0xb85a1c, mountains: 0x05060a, dust: [0.3, 0.3, 0.34],
   },
 };
+
+// what the hub looks like fully healed (blended in by World Restoration)
+const HEALED = {
+  day: { fog: 0x9aa8b4, sky: { top: 0x4a78b8, horizon: 0xa8c0d8, bottom: 0x6a7a68, clouds: 0xe8ecf0, cloudOpacity: 0.6, orbColor: 0xfff0c0, orbOpacity: 0.6 }, hemiSky: 0xc8d8e8, hemiGround: 0x5a5a3a, hemi: 2.2, sun: 0xfff0d0, sunI: 2.3, far: 110, mountains: 0x5a6a78, dust: [0.75, 0.75, 0.7] },
+  night: { fog: 0x161c2a, sky: { top: 0x0a1020, horizon: 0x202a40, bottom: 0x0a0c10, clouds: 0x30384a, cloudOpacity: 0.5, orbColor: 0xc0d0ff, orbOpacity: 0.7 }, hemiSky: 0x4a5a80, hemiGround: 0x101010, hemi: 0.95, sun: 0x90a0d0, sunI: 0.55, far: 50, mountains: 0x10141c, dust: [0.4, 0.4, 0.45] },
+};
+// ruined extreme: ash sky and a red sun
+const RUINED = { day: { sun: 0xd06a40, sky: { top: 0x4a4440, horizon: 0x7a6a5a } } };
+const lerpC = (a, b, k) => { const A = new THREE.Color(a), B = new THREE.Color(b); return A.lerp(B, k).getHex(); };
 
 export class Town extends Area {
   constructor(game) {
@@ -318,12 +328,67 @@ export class Town extends Area {
     }
     this.scene.add(hills);
 
+    this.buildRestoration(rnd);
+    // the Hearth tells you how healed the world is
+    interactable(A, new THREE.Vector3(-5, 0, 10.4), 1.9, 'Gaze into the Hearth (world restoration)', () => {
+      const v = this.game.restoration.value;
+      const stage = [...STAGES].reverse().find(([t]) => v >= t);
+      this.game.hud.banner(`World Restoration ${v.toFixed(1)}%`, stage[1]);
+    });
+
     this.spawns.portal = { pos: new THREE.Vector3(-7, 0, -26.5), yaw: Math.PI };
     this.spawns.portal_depths = { pos: new THREE.Vector3(7, 0, -26.5), yaw: Math.PI };
     this.spawns.respawn = { pos: new THREE.Vector3(-5, 0, 11.5), yaw: 0 };
     this.spawns.start = { pos: new THREE.Vector3(0, 0, 26), yaw: 0 };
 
     this.finish();
+  }
+
+  /** Props that appear as the world heals (toggled by applyRestoration). */
+  buildRestoration(rnd) {
+    const A = this;
+    this.restoreGroups = {};
+    const grp = (t) => { const g = new THREE.Group(); g.visible = false; this.scene.add(g); this.restoreGroups[t] = g; return g; };
+    const open = (x, z) => !this.collision.query(x - 0.4, z - 0.4, x + 0.4, z + 0.4, []).some((b) => b.maxY > 0.2 && b.tag !== 'npc');
+    const spots = (n, r = 30) => { const out = []; for (let i = 0; i < n * 4 && out.length < n; i++) { const x = (rnd() - 0.5) * 2 * r, z = (rnd() - 0.5) * 2 * r; if (open(x, z)) out.push([x, z]); } return out; };
+    const inst = (geo, mat, pts, sy = 1, group) => {
+      const m = new THREE.InstancedMesh(geo, mat, pts.length);
+      const o = new THREE.Object3D();
+      pts.forEach(([x, z], i) => { o.position.set(x, 0, z); o.rotation.y = rnd() * 6; o.scale.set(1, sy * (0.7 + rnd() * 0.6), 1); o.updateMatrix(); m.setMatrixAt(i, o.matrix); });
+      group.add(m);
+    };
+    // 20%: first grass
+    const grass = new THREE.ConeGeometry(0.12, 0.35, 4); grass.translate(0, 0.17, 0);
+    inst(grass, litMaterial('hedge', { color: 0x80a050 }), spots(220), 1, grp(20));
+    // 40%: flowers + birds
+    const g40 = grp(40);
+    for (const col of [0xd04040, 0xe0d040, 0xe0e0f0, 0x9060d0]) { const f = new THREE.BoxGeometry(0.1, 0.1, 0.1); f.translate(0, 0.28, 0); inst(f, basicMaterial(col), spots(40), 1, g40); }
+    const birds = [];
+    for (let i = 0; i < 7; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.15), basicMaterial(0x202020)); g40.add(b); birds.push({ b, r: 12 + rnd() * 18, h: 14 + rnd() * 8, s: 0.2 + rnd() * 0.3, ph: rnd() * 6 }); }
+    let bt = 0;
+    this.birds = { update: (dt) => { if (!g40.visible) return; bt += dt; for (const q of birds) { const a = bt * q.s + q.ph; q.b.position.set(Math.cos(a) * q.r, q.h + Math.sin(bt * 3 + q.ph) * 0.3, Math.sin(a) * q.r); q.b.rotation.y = -a; q.b.scale.x = 0.6 + Math.abs(Math.sin(bt * 8 + q.ph)) * 0.6; } } };
+    // 60%: the dead trees leaf again; bushes
+    const g60 = grp(60);
+    for (const [x, z] of [[30.2, 1.5], [-30, 16.5], [-18, -30]]) for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1.3 + rnd() * 0.5, 0), litMaterial('hedge', { color: 0x90b070 })); m.position.set(x + (rnd() - 0.5) * 1.6, 4 + rnd() * 1.6, z + (rnd() - 0.5) * 1.6); g60.add(m); }
+    const bush = new THREE.IcosahedronGeometry(0.6, 0); bush.translate(0, 0.4, 0);
+    inst(bush, litMaterial('hedge', { color: 0x7a9a5a }), spots(26), 0.8, g60);
+    // 100%: the festival of the Hearth - lantern strings and bunting
+    const g100 = grp(100);
+    for (let i = 0; i < 48; i++) {
+      const a = (i / 48) * Math.PI * 2, r = 6 + (i % 2) * 0.4;
+      const l = new THREE.Mesh(new THREE.OctahedronGeometry(0.14, 0), basicMaterial([0xffc040, 0xff6040, 0xffe0a0][i % 3])); l.position.set(-5 + Math.cos(a) * r, 3.2 + Math.sin(i * 1.7) * 0.25, 8 + Math.sin(a) * r); g100.add(l);
+    }
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const pole = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.4, 0.12), litMaterial('beam')); pole.position.set(-5 + Math.cos(a) * 6.2, 1.7, 8 + Math.sin(a) * 6.2); g100.add(pole); }
+    // new folk at 40%, a busy town at 80%
+    this.restoreNpcs = [];
+    const folk = [
+      [40, { id: 'flowergirl', name: 'Flower Seller', lines: ['Flowers! Real ones! I didn\u2019t know they still grew.', 'Take one. For the Hearth.'], x: 2.5, z: 12.5, yaw: Math.PI, cloth: 'clothRed', scale: 0.85 }],
+      [40, { id: 'traveller', name: 'A Traveller', lines: ['I walked in from the north. The road was there again. It wasn\u2019t, last year.'], x: 14, z: 2, yaw: -1.4, cloth: 'clothBrown' }],
+      [80, { id: 'bard', name: 'The Bard', lines: ['A song about you is going round. It\u2019s mostly true.', 'The hour will end. I\u2019m writing the last verse now.'], x: -11.5, z: 9, yaw: 1.2, cloth: 'cloth' }],
+      [80, { id: 'children', name: 'Children Playing', lines: ['Tag! You\u2019re hollow!', 'Are you the one who went all the way down?'], x: 6, z: 14, yaw: 2.5, cloth: 'clothBrown', scale: 0.7 }],
+      [80, { id: 'guardcap', name: 'Watch Captain', lines: ['First time in my life I opened the south gate. Nothing came in but sunlight.'], x: -3.6, z: 30.2, yaw: Math.PI, scale: 1.1 }],
+    ];
+    for (const [t, d] of folk) { const n = npc(A, d); n.group.visible = false; if (n.talk) n.talk.enabled = false; if (n.col) n.col.disabled = true; this.restoreNpcs.push({ t, npc: n }); }
   }
 
   /** 0 outdoors .. 1 deep inside a building (dims sky light indoors). */
@@ -337,11 +402,40 @@ export class Town extends Area {
     return 0;
   }
 
+  /** Blend a phase palette from ruined to healed (World Restoration). */
+  blended(phase) {
+    const base = PHASES[phase], H = HEALED[phase], k = this.restK || 0;
+    const r = RUINED[phase] && k < 0.2 ? (0.2 - k) / 0.2 : 0;
+    const sky = { ...base.sky };
+    for (const key of ['top', 'horizon', 'bottom', 'clouds', 'orbColor']) sky[key] = lerpC(base.sky[key], H.sky[key], Math.max(0, (k - (key === 'top' ? 0.5 : 0.2)) / (key === 'top' ? 0.5 : 0.8)));
+    if (r) { sky.top = lerpC(sky.top, RUINED.day.sky.top, r); sky.horizon = lerpC(sky.horizon, RUINED.day.sky.horizon, r); }
+    sky.cloudOpacity = base.sky.cloudOpacity + (H.sky.cloudOpacity - base.sky.cloudOpacity) * k;
+    sky.orbOpacity = base.sky.orbOpacity + (H.sky.orbOpacity - base.sky.orbOpacity) * k;
+    return {
+      ...base, sky,
+      fog: lerpC(base.fog, H.fog, k), far: base.far + (H.far - base.far) * k,
+      hemiSky: lerpC(base.hemiSky, H.hemiSky, k), hemiGround: lerpC(base.hemiGround, H.hemiGround, k), hemi: base.hemi + (H.hemi - base.hemi) * k,
+      sun: r ? lerpC(base.sun, RUINED.day.sun, r) : lerpC(base.sun, H.sun, k), sunI: base.sunI + (H.sunI - base.sunI) * k,
+      mountains: lerpC(base.mountains, H.mountains, k), dust: base.dust.map((v, i) => v + (H.dust[i] - v) * k),
+      lantern: base.lantern * (1 - k * 0.4),
+    };
+  }
+
+  /** World Restoration 0..100: blend light, show plants / birds / folk / festival by stage. */
+  applyRestoration(v) {
+    this.restK = v / 100;
+    for (const [t, grp] of Object.entries(this.restoreGroups || {})) grp.visible = v >= +t;
+    for (const n of this.restoreNpcs || []) { const on = v >= n.t; n.npc.group.visible = on; if (n.npc.talk) n.npc.talk.enabled = on; if (n.npc.col) n.npc.col.disabled = !on; }
+    if (this.gardenIt) this.gardenIt.enabled = v >= 80;
+    this.ambientDust = 1 - Math.min(0.85, v / 100);
+    const ph = this.phase; this.phase = null; if (ph) this.applyPhase(ph);
+  }
+
   /** Apply DAY / NIGHT lighting. */
   applyPhase(phase) {
     if (this.phase === phase) return;
     this.phase = phase;
-    const p = PHASES[phase];
+    const p = this.blended(phase);
     this.scene.fog.color.set(p.fog);
     this.scene.fog.near = p.near; this.scene.fog.far = p.far + (phase === 'day' ? 10 : 6);
     this.scene.background = new THREE.Color(p.fog);
@@ -358,6 +452,7 @@ export class Town extends Area {
   weaponLighting() { return this.phase === 'day' ? [1.6, 0.1] : [0.5, 2.2]; }
 
   onEnter() {
+    this.applyRestoration(this.game.restoration ? this.game.restoration.value : 0);
     this.applyPhase(this.game.townPhase());
   }
 
@@ -366,7 +461,8 @@ export class Town extends Area {
     super.update(dt, player);
     this.sky.update(dt, this.game.camera);
     // dim sky/sun light when indoors so interiors read as interiors
-    const p = PHASES[this.phase];
+    const p = this._bp && this._bpPhase === this.phase && this._bpK === this.restK ? this._bp : (this._bp = this.blended(this.phase), this._bpPhase = this.phase, this._bpK = this.restK, this._bp);
+    if (this.birds) this.birds.update(dt);
     const k = 1 - this.indoorFactor(player.pos) * 0.75;
     this._indoor = this._indoor === undefined ? k : this._indoor + (k - this._indoor) * Math.min(1, dt * 4);
     this.hemi.intensity = p.hemi * this._indoor;

@@ -224,6 +224,20 @@ export class Castle extends Dungeon {
   onEnter() {
     super.onEnter();
     this.applyPhase(this.game.townPhase());
+    // castle gardens grow back when the world is 80% healed
+    if (!this.garden && this.game.restoration && this.game.restoration.value >= 80) {
+      this.garden = new THREE.Group();
+      const sp = this.spawns.start.pos;
+      const hedge = litMaterial('hedge', { color: 0x80a060 });
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2, r = 3.2 + (i % 3) * 0.5;
+        const x = sp.x + Math.cos(a) * r, z = sp.z + Math.sin(a) * r;
+        if (this.collision.query(x - 0.3, z - 0.3, x + 0.3, z + 0.3, []).some((b) => b.maxY > sp.y + 0.3)) continue;
+        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0), i % 3 ? hedge : basicMaterial([0xd04050, 0xe0d050, 0xf0f0ff][i % 3]));
+        m.position.set(x, sp.y + 0.3, z); this.garden.add(m);
+      }
+      this.scene.add(this.garden);
+    }
   }
 
   weaponLighting() { return this.phase === 'day' ? [1.4, 0.4] : [0.5, 2.2]; }

@@ -8,13 +8,14 @@ import * as THREE from '../../lib/three.module.min.js';
 import { Area } from './area.js';
 import { boxGeo, trs } from '../engine/geometry.js';
 import { litMaterial } from '../engine/materials.js';
-import { box, mesh, wallTorch, brazier, portal, chest } from './props.js';
+import { box, mesh, wallTorch, brazier, portal, chest, interactable } from './props.js';
 import { generateDungeon } from './dungeonGen.js';
 import { BIOMES, BIOME_IDS, mainLevelEnemies, bandFor } from './biomes.js';
 import { BOSS_BY_LEVEL, STORY_LEVELS } from '../entities/enemyTypes.js';
 import { gate, remains, spikeTrap, healingShrine } from './props.js';
 import { AFFIX_IDS, levelDmgMul } from '../entities/enemy.js';
 import { ascensionMul } from '../systems/progression.js';
+import { MAPS } from '../systems/shops.js';
 
 export const CELL = 2.5;
 const LEVEL_DROP = 1.5;
@@ -217,6 +218,44 @@ export class Dungeon extends Area {
 
     this._torches();
     if (this.decorate) this.decorate(); else this._decorate();
+    // vaults (locked, a key is carried by one enemy) and cracked walls (break them open)
+    this.breakables = [];
+    for (const [c, r, dc, dr, kind] of (this.layout && this.layout.niches) || []) {
+      const p = this.cellCenter(c, r);
+      const bx = p.x - dc * CELL / 2, bz = p.z - dr * CELL / 2;          // the opening between room and niche
+      const w = dc ? 0.5 : CELL, d = dc ? CELL : 0.5;
+      const cx = p.x + dc * 0.45, cz = p.z + dr * 0.45;
+      if (kind === 'vault') {
+        const door = new THREE.Mesh(new THREE.BoxGeometry(w, 2.6, d), litMaterial('ironDark'));
+        door.position.set(bx, p.y + 1.3, bz); this.scene.add(door);
+        const col = this.collision.addCentered(bx, p.y + 1.6, bz, w, 3.2, d, 'vault');
+        this.mapMarkers.push({ x: bx, z: bz, type: 'gate' });
+        const it = interactable(this, new THREE.Vector3(bx - dc * 1.0, p.y, bz - dr * 1.0), 2.2, 'Locked vault (needs a Vault Key)', () => {
+          if (!this.game.state.consume('vault_key')) { this.game.hud.feed('Locked. One of the dead down here carries the key.', '#d8b040'); return; }
+          col.disabled = true; this.scene.remove(door); it.enabled = false;
+          this.game.hud.banner('The vault opens', 'old riches, older dust');
+        });
+        chest(A, cx, p.y, cz, Math.atan2(-dc, -dr), () => { const rar = this.game.rewards.roll(); this.game.rewards.open(rar === 'normal' ? 'special' : rar, new THREE.Vector3(cx - dc * 1.2, p.y, cz - dr * 1.2)); }, { glow: 0xd8b040 });
+        this.vaultKey = true;
+      } else {
+        const wallM = new THREE.Mesh(new THREE.BoxGeometry(w, 3.2, d), litMaterial(this.biome.wall, { color: 0xb8a890 }));
+        wallM.position.set(bx, p.y + 1.6, bz); this.scene.add(wallM);
+        // cracks
+        for (let i = 0; i < 4; i++) { const cr = new THREE.Mesh(new THREE.BoxGeometry(dc ? 0.52 : 0.08, 0.9, dc ? 0.08 : 0.52), litMaterial('ironDark')); cr.position.set(bx + (dc ? 0 : (i - 1.5) * 0.5), p.y + 0.8 + (i % 2) * 1.2, bz + (dc ? (i - 1.5) * 0.5 : 0)); cr.rotation.set(0.4 * (i % 2 ? 1 : -1), 0, 0.5); this.scene.add(cr); wallM.add(cr); cr.position.sub(wallM.position); }
+        const col = this.collision.addCentered(bx, p.y + 1.6, bz, w, 3.2, d, 'breakable');
+        const b = { pos: new THREE.Vector3(bx, p.y + 1, bz), hp: 3, broken: false, hit: () => {
+          if (b.broken) return;
+          b.hp--; this.dust.burst(bx, p.y + 1.4, bz, 14, 2, 0.6, [0.35, 0.32, 0.28], 0.12, -6, 1);
+          wallM.position.x += (Math.random() - 0.5) * 0.05;
+          if (b.hp > 0) { this.game.hud.feed('The wall cracks...', '#c0b090'); return; }
+          b.broken = true; col.disabled = true; this.scene.remove(wallM);
+          this.dust.burst(bx, p.y + 1.4, bz, 50, 4, 1.2, [0.35, 0.32, 0.28], 0.18, -6, 1);
+          this.game.hud.banner('A hidden chamber', 'not everything down here is solid');
+        } };
+        this.breakables.push(b);
+        chest(A, cx, p.y, cz, Math.atan2(-dc, -dr), () => { this.game.loot.roll('chest', new THREE.Vector3(cx - dc * 1.2, p.y, cz - dr * 1.2), 4); });
+      }
+    }
     // high secret alcoves: a chest you can only reach by mantling / double-jumping
     for (const [c, r, dc, dr] of (this.layout && this.layout.secrets) || []) {
       const p = this.cellCenter(c, r);
@@ -459,6 +498,12 @@ export class Dungeon extends Area {
     this._flowC = null;
     this.getNav();
     if (this.game.spawnEnemies) this.game.spawnEnemies(this);
+    // one enemy carries the vault key
+    if (this.vaultKey) {
+      const c = this.game.enemies.list.filter((e) => !e.def.boss && !e.def.flee);
+      const e = c[Math.floor(Math.random() * c.length)];
+      if (e) { e.tags.key = true; this.game.hud.feed('Somewhere here, a vault. Someone carries its key.', '#d8b040'); }
+    }
   }
 
   onExit() {
@@ -492,14 +537,20 @@ export class MainDungeon extends Dungeon {
     this.loreKey = abyss ? 'abyss' : level <= 5 ? 'dungeon' : bandId;
     this.level = level;
     this.abyss = abyss;
-    this.biome = B;
+    const rest = game.restoration ? game.restoration.value : 0;
+    // the first levels heal with the world: lighter, with plants growing back (never 26+ / the Abyss)
+    const k = level <= 5 ? rest / 100 : 0;
+    this.biome = k ? { ...B, hemi: [B.hemi[0], B.hemi[1], B.hemi[2] * (1 + k * 0.7)], fogFar: B.fogFar + k * 14, lantern: B.lantern * (1 - k * 0.2), decor: rest >= 60 ? [...B.decor, 'mushroom', 'reeds', 'stump'] : B.decor } : B;
     this.biomeId = bandId;
     this.transient = true;
     this.returnSpawn = 'portal';
     this.conquestMode = !!game.conquest;
     const asc = ascensionMul(game.state);
-    const rest = game.restoration ? game.restoration.value : 0;
-    this.layout = generateDungeon(level * 104729 + 17, { arena: true, enemies: mainLevelEnemies(level), decor: B.decor });
+    // cartographer map for this level
+    const mapId = game.state.world.mapMod; this.mapMod = mapId ? (MAPS[mapId] || {}).mod || {} : {};
+    if (mapId) { game.state.world.mapMod = null; this.mapName = MAPS[mapId] && MAPS[mapId].name; }
+    if (this.mapMod.hoarder) game.forceHoarder = true;
+    this.layout = generateDungeon(level * 104729 + 17, { arena: true, enemies: mainLevelEnemies(level), decor: this.biome.decor });
     this.cells = this.layout.cells;
     this.braziers = this.layout.braziers;
     // the world healing thins out the first levels (never below level 26 / the Abyss)
@@ -508,7 +559,7 @@ export class MainDungeon extends Dungeon {
     this.spawnList = spawns;
     this.fixedDecor = false;
     const cq = this.conquestMode ? 2.5 : 1;
-    this.enemyOpts = { level, hpMul: cq * asc, dmgMul: cq * asc };
+    this.enemyOpts = { level, hpMul: cq * asc, dmgMul: cq * asc * (this.mapMod.dmg || 1), ...(this.mapMod.haste ? { affixes: ['hasted'] } : {}) };
     // guardian
     const story = STORY_LEVELS[level] || (abyss && level % 10 === 0 ? BOSS_BY_LEVEL[Math.floor(Math.random() * BOSS_BY_LEVEL.length)] : null);
     this.bossType = story;
@@ -607,6 +658,8 @@ export class MainDungeon extends Dungeon {
 
   onEnter() {
     super.onEnter();
+    if (this.mapName) this.game.hud.feed(`${this.mapName} guides you.`, '#d8c090');
+    if (this.mapMod.reveal && this.game.minimap) this.game.minimap.revealAll();
     if (this.conquestMode) {
       const targets = this.game.enemies.list.filter((e) => !e.dead && !e.def.flee);
       for (const e of targets) e.tags.conquest = true;

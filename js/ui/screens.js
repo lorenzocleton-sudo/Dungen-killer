@@ -501,7 +501,9 @@ export class Screens {
         <span class="slot-item">${e ? `<span style="color:${e.icon[1]}">${e.icon[0]}</span> ${esc(e.name)}${e.run ? ' <span class="run">*</span>' : ''}` : '<i>empty</i>'}</span></button>`;
     }).join('');
     const stats = statRows(this.game.player.stats).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-    const sets = Object.entries(setCounts(st)).map(([id, n]) => `<div class="setline" style="color:${SETS[id].color}">${SETS[id].name} ${n}/6</div>`).join('');
+    const cos = st.world.cosmetics || {};
+    const cloak = cos.cloak && COSMETICS[cos.cloak] ? `<div class="setline" style="color:#${COSMETICS[cos.cloak].color.toString(16).padStart(6, '0')}">Cloak: ${COSMETICS[cos.cloak].name.replace('Pattern: ', '')}</div>` : '';
+    const sets = cloak + Object.entries(setCounts(st)).map(([id, n]) => `<div class="setline" style="color:${SETS[id].color}">${SETS[id].name} ${n}/6</div>`).join('');
     const items = this.sorted(st.allItems());
     const grid = items.length ? items.map((it) => this.itemCell(it)).join('') : '<div class="empty">Nothing here.</div>';
     return `<div class="inv-layout">
@@ -741,7 +743,7 @@ export class Screens {
   // ------------------------------------------------------------ the skill web
   renderTree(canLearn) {
     const st = this.game.state, prog = st.progression, ren = this.game.renown;
-    if (!this.zoom) this.zoom = Math.min(0.62, Math.max(0.32, window.innerWidth * 0.55 / TREE_W));
+    if (!this.zoom) this.zoom = 0.62;
     const z = this.zoom, W = TREE_W, H = TREE_H, flt = this.treeFilter;
     const dim = (n) => flt !== 'all' && n.branch !== flt && n.branch !== 'root' && !(n.branch === 'hybrid' && n.id.includes(flt));
     const lines = [];
@@ -760,7 +762,7 @@ export class Screens {
         data-act="node" data-id="${n.id}" data-key="n-${n.id}" data-name="${esc(n.name.toLowerCase())}" title="${esc(n.name + ' — ' + n.desc)}">${lock}${act}<span class="nn">${esc(n.name)}</span>${pips}</button>`;
     }).join('');
     const labels = PATH_ORDER.map((b, i) => {
-      const a = (i / PATH_ORDER.length) * Math.PI * 2 - Math.PI / 2, r = 1170;
+      const a = (i / PATH_ORDER.length) * Math.PI * 2 - Math.PI / 2, r = 1260;
       return `<div class="branch-label" style="left:${TREE_W / 2 + Math.cos(a) * r}px;top:${TREE_H / 2 + Math.sin(a) * r}px;color:${BRANCHES[b].color}" title="${esc(BRANCHES[b].desc)}">${BRANCHES[b].name}</div>`;
     }).join('');
     let detail = `<div class="detail muted">${canLearn ? 'The old master waits. Choose a path.' : 'Skills can only be learned at the Hall of Paths, in town.'}<br><small>Drag to pan · pinch or +/- to zoom · search or filter a path.</small></div>`;
@@ -882,7 +884,8 @@ export class Screens {
   }
   renderJournal() {
     const found = this.game.journal.found;
-    if (!found.length) return '<div class="empty">No notes yet. Search bookshelves, chests and the remains of those who went before.</div>';
+    if (!found.length) return `<div class="restore">World Restoration: <b>${(this.game.restoration ? this.game.restoration.value : 0).toFixed(1)}%</b></div><div class="empty">No notes yet. Search bookshelves, chests and the remains of those who went before.</div>`;
     const items = found.map((id) => NOTE_MAP[id]).filter(Boolean).map((n) => `<div class="note"><div class="note-title">${esc(n.title)}</div><div class="note-text">\u201C${esc(n.text)}\u201D</div></div>`).join('');
-    return `<div class="journal"><div class="small">${found.length} of ${NOTES.length} fragments found</div>${items}</div>`;
+    const v = this.game.restoration ? this.game.restoration.value : 0;
+    return `<div class="journal"><div class="restore">World Restoration: <b>${v.toFixed(1)}%</b> <span class="rbar"><span style="width:${v}%"></span></span></div><div class="small">${found.length} of ${NOTES.length} fragments found</div>${items}</div>`;
   }}

@@ -43,6 +43,7 @@ import { ENEMY_TYPES } from './entities/enemyTypes.js';
 import { EnemyManager } from './entities/enemyManager.js';
 import { AllyManager } from './entities/allies.js';
 import { ShopSystem } from './systems/shops.js';
+import { Restoration } from './systems/restoration.js';
 import { CombatSystem } from './systems/combat.js';
 import { LootSystem } from './systems/loot.js';
 
@@ -98,6 +99,7 @@ class Game {
     this.dungeonLevel = 1;
     this.allies = new AllyManager(this);
     this.shops = new ShopSystem(this);
+    this.restoration = new Restoration(this);
     this.systems = [this.enemies, this.allies, this.combat, this.loot, this.projectiles]; // pluggable: { update(dt, game) }
     this.admin = new AdminMenu(this);
     for (const id of ['menu', 'admin', 'panel', 'title']) fastTap(document.getElementById(id));
@@ -292,6 +294,15 @@ class Game {
     this.hud.banner(a.name, line);
   }
 
+  /** Cosmetics: portal colour (dyes + cloak are applied by the combat view model). */
+  applyCosmetics() {
+    const cos = this.state.world.cosmetics || {};
+    const c = cos.portal && ITEMS[cos.portal] ? ITEMS[cos.portal].cosmetic.color : null;
+    const tint = { gold: 0xffe8a0, purple: 0xe0b0ff, red: 0xffc8b8 }[c];
+    const town = this.areas.town;
+    if (town) for (const p of town.portals) if (p.layers) for (const m of p.layers) m.color.setHex(tint || p.baseTint);
+  }
+
   /** Conquest: count kills, crown the level when every enemy is dead. */
   onConquestKill(enemy) {
     const a = this.area, c = a && a.conquest;
@@ -435,6 +446,7 @@ class Game {
       const wl = this.area.weaponLighting();
       this.combat.weapon.setLighting(wl[0], wl[1]);
       this.portalCooldown = 1.0;
+      if (id === 'town') this.applyCosmetics();
       events.emit('areaChanged', { id, prev: prev && prev.id });
     };
     if (instant) { doSwap(); return; }

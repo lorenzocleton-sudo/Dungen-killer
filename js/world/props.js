@@ -182,7 +182,7 @@ export function portal(area, o) {
     },
   });
   const tp = L(0, 0.15);
-  const p = { pos: new THREE.Vector3(tp[0], y, tp[1]), radius: 1.05, target: o.target, spawn: o.spawn, descend: !!o.descend, label: o.label || 'Portal', yaw };
+  const p = { pos: new THREE.Vector3(tp[0], y, tp[1]), radius: 1.05, target: o.target, spawn: o.spawn, descend: !!o.descend, label: o.label || 'Portal', yaw, layers, baseTint: pal.tint };
   area.portals.push(p);
   return p;
 }
@@ -381,10 +381,10 @@ export function npc(area, def) {
   g.position.set(def.x, def.y || 0, def.z);
   g.rotation.y = def.yaw || 0;
   area.scene.add(g);
-  area.collision.addCentered(def.x, (def.y || 0) + 0.9, def.z, 0.8, 1.8, 0.8, 'npc');
+  const col = area.collision.addCentered(def.x, (def.y || 0) + 0.9, def.z, 0.8, 1.8, 0.8, 'npc');
   const baseYaw = def.yaw || 0;
   const phase = Math.random() * 10;
-  const n = { def, group: g, pos: new THREE.Vector3(def.x, 0, def.z) };
+  const n = { def, group: g, pos: new THREE.Vector3(def.x, 0, def.z), col };
   area.animated.push({
     update(dt, t, player) {
       body.scale.y = 1 + Math.sin(t * 1.3 + phase) * 0.015;

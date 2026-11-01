@@ -56,12 +56,13 @@ export class EnemyManager {
       return n >= 4;
     };
     const k0 = nav.idx(e.pos.x, e.pos.z);
-    if (ok(k0) && Math.abs(nav.h[k0] - e.pos.y) < 1) return true;
+    const tol = always ? 2.5 : 1;
+    if (ok(k0) && Math.abs(nav.h[k0] - e.pos.y) < tol) { if (always) { e.pos.y = nav.h[k0]; e.group.position.copy(e.pos); } return true; }
     const i0 = k0 % nav.W, j0 = (k0 / nav.W) | 0;
     for (let d = 1; d <= 8; d++) for (let j = j0 - d; j <= j0 + d; j++) for (let i = i0 - d; i <= i0 + d; i++) {
       if (Math.max(Math.abs(i - i0), Math.abs(j - j0)) !== d || i < 0 || j < 0 || i >= nav.W || j >= nav.H) continue;
       const k = j * nav.W + i;
-      if (!ok(k) || Math.abs(nav.h[k] - e.pos.y) > 1) continue;
+      if (!ok(k) || Math.abs(nav.h[k] - e.pos.y) > tol) continue;
       const c = nav.center(k);
       e.pos.set(c.x, c.y, c.z); e.home.copy(e.pos); e.group.position.copy(e.pos);
       return true;
@@ -71,7 +72,7 @@ export class EnemyManager {
 
   /** Spawn one enemy (or boss) at a world position - used by the admin menu and bosses. */
   spawnAt(type, pos, area = this.game.area, opts = {}) {
-    const g = area.collision.groundHeight(pos.x, pos.z, 0.3, pos.y + 2, 4);
+    const g = area.collision.groundHeight(pos.x, pos.z, 0.05, pos.y + 1, 1.2);   // floor, never a wall top
     const p = pos.clone(); if (g > -Infinity) p.y = g;
     const e = new Enemy(type, p, area, opts);
     this.fit(e, area, true);           // snap onto open ground it fits on

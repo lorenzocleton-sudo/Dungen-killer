@@ -293,8 +293,8 @@ body.touch #btn-use.show { display: flex !important; }
   background: radial-gradient(ellipse at 50% 100%, #1a140e, #0a0807 70%); -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
 .tree-sizer { position: relative; }
 .tree-view .tree { position: absolute; left: 0; top: 0; transform-origin: 0 0; min-height: 0; flex: none; background: none; border: none; }
-.tree-view .tree svg { position: absolute; left: 0; top: 0; width: 1000px; height: 1600px; inset: auto; }
-.tree-view .node { width: 70px; min-height: 42px; font-size: 11px; }
+.tree-view .tree svg { position: absolute; left: 0; top: 0; width: 2600px; height: 2600px; inset: auto; }
+.tree-view .node { width: 66px; min-height: 42px; font-size: 11px; }
 .tree-view .node.cap { width: 84px; min-height: 60px; border-radius: 50%; }
 .tree-view .node.hyb { border-style: dashed; }
 .tree-view .branch-label { font-size: 16px; }
@@ -350,3 +350,43 @@ button.admin { color: #80c0ff; border-color: #2a4060; background: #101824; }
 .lv-row button.cq { border-color: #c09040; color: #f0c070; }
 .lv-legend { font-size: 12px; color: #a89878; margin: 4px 0; }
 .crown { color: #f0c040; margin-right: 6px; }
+
+/* ---------------------------------------------------------------- loot / stores / web */
+.fbar { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; align-items: center; }
+.fbar button { padding: 3px 8px; font-size: 12px; }
+.fbar button.on, button.small.on { background: rgba(140, 100, 50, 0.6); color: #fff0c8; }
+.fbar .sep { color: #8a7a60; font-size: 12px; margin: 0 4px; }
+.fbar.wrap { max-height: 96px; overflow: auto; }
+button.small { padding: 3px 8px; font-size: 12px; }
+.cell .lk { position: absolute; right: 2px; top: 1px; font-size: 10px; color: #e0c060; }
+.cell .nw { position: absolute; left: 3px; bottom: 0; color: #80ff80; font-size: 14px; }
+.cell .il { position: absolute; right: 3px; bottom: 1px; font-size: 9px; color: #a89878; }
+.cell.r-mythic { animation: mythglow 1.6s infinite alternate; }
+@keyframes mythglow { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+.d-dmg { color: #f0e0c0; font-weight: bold; }
+.d-stats div { line-height: 1.35; }
+.d-sock { margin-top: 4px; font-size: 12px; }
+.d-set { margin-top: 4px; font-size: 12px; } .d-set span { opacity: 0.55; } .d-set span.on { opacity: 1; }
+.d-curse { color: #c080e0; margin-top: 4px; font-size: 12px; }
+.d-compare { margin-top: 5px; font-size: 12px; color: #a89878; }
+.d-compare .up { color: #70d070; margin-right: 6px; } .d-compare .down { color: #e06050; margin-right: 6px; }
+.setline { font-size: 12px; margin-top: 3px; }
+.comps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; max-height: 60vh; overflow: auto; }
+.comp { border: 1px solid rgba(140, 110, 70, 0.4); padding: 6px 8px; background: rgba(20, 14, 10, 0.6); }
+.comp.active { border-color: #80c0ff; box-shadow: 0 0 8px rgba(128, 192, 255, 0.3); }
+.comp-name { color: #f0d8a0; } .comp-name small { color: #9a8a70; margin-left: 6px; }
+.comp .perks span { opacity: 0.5; } .comp .perks span.on { opacity: 1; color: #a0d0ff; }
+.stash-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.restore { margin-bottom: 6px; color: #a0e0a0; }
+.rbar { display: inline-block; width: 160px; height: 6px; background: #203020; vertical-align: middle; margin-left: 8px; }
+.rbar span { display: block; height: 100%; background: linear-gradient(90deg, #6a8a40, #a0e080); }
+.asc .rows { margin-top: 6px; }
+.tree-tools { position: sticky; top: 0; left: 0; z-index: 3; display: flex; gap: 4px; padding: 4px; background: rgba(10, 8, 6, 0.85); width: max-content; }
+.tree-tools input, .tree-tools select { background: #1a140e; color: #e8d8b0; border: 1px solid #6a5030; padding: 3px 6px; font: inherit; font-size: 12px; }
+.node.dim { opacity: 0.18; }
+.node.found { outline: 3px solid #fff080; z-index: 4; }
+.node.activ { border-style: double; border-width: 3px; }
+.node .act { position: absolute; left: -8px; top: -10px; font-size: 14px; color: #fff; text-shadow: 0 0 4px #000; }
+.barset { margin-top: 6px; } .barset button { margin-right: 3px; }
+#tree-view line.any { stroke-dasharray: 6 5; }
+.dmg.ally { color: #80c0ff; font-size: 12px; }

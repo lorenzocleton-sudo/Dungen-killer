@@ -266,12 +266,35 @@ function tryGenerate(seed, opts) {
       secrets.push([c, r, dc, dr]);
     }
     var secretSpots = secrets;
+    // floor-level niches: a locked VAULT (key carried by one enemy) and a CRACKED WALL (break it)
+    var niches = [];
+    for (const kind of ['vault', 'cracked']) {
+      if (rnd() > (kind === 'vault' ? 0.6 : 0.7)) continue;
+      for (let tries = 0; tries < 300; tries++) {
+        const o = used[1 + Math.floor(rnd() * (used.length - 1))];
+        if (!o || o.arena) continue;
+        const side = Math.floor(rnd() * 4);
+        let c, r, dc, dr;
+        if (side === 0) { c = ri(o.x + 1, o.x + o.w - 2); r = o.y - 1; dc = 0; dr = -1; }
+        else if (side === 1) { c = ri(o.x + 1, o.x + o.w - 2); r = o.y + o.h; dc = 0; dr = 1; }
+        else if (side === 2) { c = o.x - 1; r = ri(o.y + 1, o.y + o.h - 2); dc = -1; dr = 0; }
+        else { c = o.x + o.w; r = ri(o.y + 1, o.y + o.h - 2); dc = 1; dr = 0; }
+        if (c < 2 || r < 2 || c >= W - 2 || r >= H - 2 || cells[r][c].type !== 'wall') continue;
+        const rock = (cc, rr) => cells[rr] && cells[rr][cc] && cells[rr][cc].type === 'wall';
+        if (!(rock(c + dc, r + dr) && rock(c + dr, r + dc) && rock(c - dr, r - dc) && rock(c + dc + dr, r + dr + dc) && rock(c + dc - dr, r + dr - dc))) continue;
+        const front = cells[r - dr][c - dc];
+        if (front.raise || front.pillar || occupied.has((r - dr) * W + (c - dc))) continue;
+        cells[r][c] = { type: 'floor', level: o.level, niche: kind };
+        niches.push([c, r, dc, dr, kind]);
+        break;
+      }
+    }
   }
   // map of cell -> room index (for the minimap's room reveal)
   used.forEach((o, i) => { for (let r = o.y; r < o.y + o.h; r++) for (let c = o.x; c < o.x + o.w; c++) cells[r][c].roomId = i; });
 
   return {
-    cells, rows: H, cols: W, spawns, braziers, decor, chest, portal, seed, rooms: used.length, exit: exitCell, secrets: secretSpots || [],
+    cells, rows: H, cols: W, spawns, braziers, decor, chest, portal, seed, rooms: used.length, exit: exitCell, secrets: secretSpots || [], niches: niches || [],
     roomRects: used.map((o) => ({ x: o.x, y: o.y, w: o.w, h: o.h, arena: !!o.arena })),
     far: { x: far.x, y: far.y, w: far.w, h: far.h, cx: fc, cy: fr },
     arena: arena && { x: arena.x, y: arena.y, w: arena.w, h: arena.h, cx: center(arena)[0], cy: center(arena)[1], entryDir: arena.entryDir || [0, 1] },
